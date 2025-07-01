@@ -82,7 +82,7 @@ springdoc:
   group-configs:
     - group: '基于springboot,aigc 的数字化教学平台系统'
       paths-to-match: '/**'
-      packages-to-scan: cn.org.shelly.controller
+      packages-to-scan: cn.org.shelly.edu.controller
 # knife4j
 knife4j:
   enable: true
