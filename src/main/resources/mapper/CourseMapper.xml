@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.org.shelly.edu.mapper.CourseMapper">
+
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Course">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="courseName" column="course_name" jdbcType="VARCHAR"/>
+            <result property="courseCode" column="course_code" jdbcType="VARCHAR"/>
+            <result property="description" column="description" jdbcType="VARCHAR"/>
+            <result property="tId" column="t_id" jdbcType="BIGINT"/>
+            <result property="tName" column="t_name" jdbcType="VARCHAR"/>
+            <result property="semester" column="semester" jdbcType="VARCHAR"/>
+            <result property="academicYear" column="academic_year" jdbcType="VARCHAR"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+            <result property="gmtModified" column="gmt_modified" jdbcType="TIMESTAMP"/>
+            <result property="isDeleted" column="is_deleted" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,course_name,course_code,
+        description,t_id,t_name,
+        semester,academic_year,status,
+        gmt_create,gmt_modified,is_deleted
+    </sql>
+</mapper>
