@@ -1,5 +1,5 @@
 package cn.org.shelly.edu.mapper;
-import cn.Class;
+import cn.org.shelly.edu.model.pojo.Class;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 /**
