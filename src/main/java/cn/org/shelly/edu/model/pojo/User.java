@@ -9,6 +9,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 
@@ -16,6 +17,7 @@ import lombok.Data;
  */
 @TableName(value ="user")
 @Data
+@Accessors(chain = true)
 public class User implements Serializable {
     /**
      * 用户id

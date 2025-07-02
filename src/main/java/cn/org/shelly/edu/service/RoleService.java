@@ -2,6 +2,8 @@ package cn.org.shelly.edu.service;
 import cn.org.shelly.edu.model.pojo.Role;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+
 /**
 * @author Shelly6
 * @description 针对表【role】的数据库操作Service
@@ -9,4 +11,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface RoleService extends IService<Role> {
 
+    List<String> getRoleNameByUser(Long l);
+    List<Role> getRoleByUser(Long id);
 }

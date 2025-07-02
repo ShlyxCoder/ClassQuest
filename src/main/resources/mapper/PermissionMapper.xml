@@ -27,4 +27,14 @@
         update_by,is_deleted,parent_id,
         icon
     </sql>
+    <select id="getPermissionByUser" resultType="cn.org.shelly.edu.model.pojo.Permission">
+        SELECT DISTINCT
+            *
+        FROM
+            permission p
+                JOIN role_permission rp ON p.id = rp.permission_id
+                JOIN user_role ur ON rp.role_id = ur.role_id
+        WHERE
+            ur.user_id = #{id}
+    </select>
 </mapper>

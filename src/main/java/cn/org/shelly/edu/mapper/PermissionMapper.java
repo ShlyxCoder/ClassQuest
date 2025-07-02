@@ -2,6 +2,8 @@ package cn.org.shelly.edu.mapper;
 import cn.org.shelly.edu.model.pojo.Permission;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
+import java.util.List;
+
 /**
 * @author Shelly6
 * @description 针对表【permission】的数据库操作Mapper
@@ -10,6 +12,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface PermissionMapper extends BaseMapper<Permission> {
 
+    List<Permission> getPermissionByUser(long id);
 }
 
 

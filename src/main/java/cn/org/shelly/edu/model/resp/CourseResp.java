@@ -1,26 +1,18 @@
-package cn.org.shelly.edu.model.pojo;
+package cn.org.shelly.edu.model.resp;
 
+import cn.org.shelly.edu.model.pojo.Course;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-
-import java.io.Serial;
-import java.io.Serializable;
-import java.util.Date;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-/**
- * 课程表
- * @TableName course
- */
-@TableName(value ="course")
+
 @Data
 @Accessors(chain = true)
-public class Course implements Serializable {
+public class CourseResp {
     /**
-     * 
+     *
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
@@ -73,25 +65,16 @@ public class Course implements Serializable {
     @TableField(value = "status")
     private Integer status;
 
-    /**
-     * 
-     */
-    @TableField(value = "gmt_create")
-    private Date gmtCreate;
-
-    /**
-     * 
-     */
-    @TableField(value = "gmt_modified")
-    private Date gmtModified;
-
-    /**
-     * 
-     */
-    @TableField(value = "is_deleted")
-    private Integer isDeleted;
-
-    @TableField(exist = false)
-    @Serial
-    private static final long serialVersionUID = 1L;
+    public static CourseResp toResp(Course course) {
+        return new CourseResp()
+                .setId(course.getId())
+                .setCourseName(course.getCourseName())
+                .setCourseCode(course.getCourseCode())
+                .setDescription(course.getDescription())
+                .setTName(course.getTName())
+                .setTId(course.getTId())
+                .setSemester(course.getSemester())
+                .setAcademicYear(course.getAcademicYear())
+                .setStatus(course.getStatus());
+    }
 }

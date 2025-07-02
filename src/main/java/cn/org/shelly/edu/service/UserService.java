@@ -1,5 +1,7 @@
 package cn.org.shelly.edu.service;
 import cn.org.shelly.edu.model.pojo.User;
+import cn.org.shelly.edu.model.req.LoginParam;
+import cn.org.shelly.edu.model.req.UserReq;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -9,4 +11,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface UserService extends IService<User> {
 
+    String login(LoginParam param);
+
+    void regist(UserReq req);
+
+    void updateInfo(UserReq param);
 }
