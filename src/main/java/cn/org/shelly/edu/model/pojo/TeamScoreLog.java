@@ -4,24 +4,28 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
-import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
 
 /**
- * 小组表（固定分组，存储姓名和总人数）
- * @TableName team
+ * 小组得分日志表：记录每次得分及来源
+ * @TableName team_score_log
  */
-@TableName(value ="team")
+@TableName(value ="team_score_log")
 @Data
-public class Team implements Serializable {
+public class TeamScoreLog implements Serializable {
     /**
-     * 小组ID
+     * 日志ID
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
+
+    /**
+     * 小组ID
+     */
+    @TableField(value = "team_id")
+    private Long teamId;
 
     /**
      * 所属游戏ID
@@ -30,42 +34,35 @@ public class Team implements Serializable {
     private Long gameId;
 
     /**
-     * 组长学生ID
+     * 本次变动的分数
      */
-    @TableField(value = "leader_id")
-    private Long leaderId;
+    @TableField(value = "score")
+    private Integer score;
 
     /**
-     * 组长姓名
+     * 得分原因
      */
-    @TableField(value = "leader_name")
-    private String leaderName;
+    @TableField(value = "reason")
+    private String reason;
 
     /**
-     * 总人数
+     * 游戏中的轮次（可选）
      */
-    @TableField(value = "total_members")
-    private Integer totalMembers;
+    @TableField(value = "round")
+    private Integer round;
 
     /**
-     * 小组总分
+     * 游戏阶段：1-棋盘赛，2-提案赛
      */
-    @TableField(value = "total_score")
-    private Integer totalScore;
+    @TableField(value = "phase")
+    private Integer phase;
 
     /**
-     * 创建时间
+     * 得分时间
      */
     @TableField(value = "gmt_create")
     private Date gmtCreate;
 
-    /**
-     * 更新时间
-     */
-    @TableField(value = "gmt_update")
-    private Date gmtUpdate;
-
     @TableField(exist = false)
-    @Serial
     private static final long serialVersionUID = 1L;
 }

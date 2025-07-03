@@ -9,37 +9,51 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
- * 分组合集表
- * @TableName team_set
+ * 班级表
+ * @TableName class
  */
-@TableName(value ="team_set")
+@TableName(value ="class")
 @Data
-public class TeamSet implements Serializable {
+@Accessors(chain = true)
+public class Classes implements Serializable {
     /**
-     * 分组合集ID
+     * 
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
-     * 所属班级ID
+     * 班级编码
      */
-    @TableField(value = "class_id")
-    private Long classId;
+    @TableField(value = "class_code")
+    private String classCode;
 
     /**
-     * 分组合集名称
+     * 所属课程ID
      */
-    @TableField(value = "name")
-    private String name;
+    @TableField(value = "course_id")
+    private Long courseId;
 
     /**
-     * 是否启用
+     * 当前学生数
      */
-    @TableField(value = "enabled")
-    private Integer enabled;
+    @TableField(value = "current_students")
+    private Integer currentStudents;
+
+    /**
+     * 状态：1-活跃，0-归档
+     */
+    @TableField(value = "status")
+    private Integer status;
+
+    /**
+     * 授课教师id
+     */
+    @TableField(value = "t_id")
+    private Long tId;
 
     /**
      * 
@@ -54,7 +68,7 @@ public class TeamSet implements Serializable {
     private Date gmtModified;
 
     /**
-     * 
+     * 逻辑删除
      */
     @TableField(value = "is_deleted")
     private Integer isDeleted;

@@ -6,15 +6,18 @@
 
     <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Team">
             <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="gameId" column="game_id" jdbcType="BIGINT"/>
+            <result property="leaderId" column="leader_id" jdbcType="BIGINT"/>
             <result property="leaderName" column="leader_name" jdbcType="VARCHAR"/>
-            <result property="memberNames" column="member_names" jdbcType="VARCHAR"/>
             <result property="totalMembers" column="total_members" jdbcType="INTEGER"/>
+            <result property="totalScore" column="total_score" jdbcType="INTEGER"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,leader_name,member_names,
-        total_members,gmt_create,gmt_update
+        id,game_id,leader_id,
+        leader_name,total_members,total_score,
+        gmt_create,gmt_update
     </sql>
 </mapper>

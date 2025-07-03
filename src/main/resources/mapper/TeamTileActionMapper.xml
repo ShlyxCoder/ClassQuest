@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.org.shelly.edu.mapper.TeamTileActionMapper">
+
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.TeamTileAction">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="gameId" column="game_id" jdbcType="BIGINT"/>
+            <result property="teamId" column="team_id" jdbcType="BIGINT"/>
+            <result property="round" column="round" jdbcType="INTEGER"/>
+            <result property="phase" column="phase" jdbcType="TINYINT"/>
+            <result property="tileIndex" column="tile_index" jdbcType="INTEGER"/>
+            <result property="isTriggered" column="is_triggered" jdbcType="TINYINT"/>
+            <result property="isActive" column="is_active" jdbcType="TINYINT"/>
+            <result property="triggerType" column="trigger_type" jdbcType="TINYINT"/>
+            <result property="valueChange" column="value_change" jdbcType="INTEGER"/>
+            <result property="triggerDesc" column="trigger_desc" jdbcType="VARCHAR"/>
+            <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+            <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,game_id,team_id,
+        round,phase,tile_index,
+        is_triggered,is_active,trigger_type,
+        value_change,trigger_desc,gmt_create,
+        gmt_update
+    </sql>
+</mapper>

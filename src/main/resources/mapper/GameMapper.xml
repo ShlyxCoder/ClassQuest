@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.org.shelly.edu.mapper.GameMapper">
+
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Game">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="studentCount" column="student_count" jdbcType="INTEGER"/>
+            <result property="teamCount" column="team_count" jdbcType="INTEGER"/>
+            <result property="teamMemberCount" column="team_member_count" jdbcType="INTEGER"/>
+            <result property="stage" column="stage" jdbcType="TINYINT"/>
+            <result property="chessRound" column="chess_round" jdbcType="TINYINT"/>
+            <result property="chessPhase" column="chess_phase" jdbcType="TINYINT"/>
+            <result property="proposalStage" column="proposal_stage" jdbcType="TINYINT"/>
+            <result property="proposalRound" column="proposal_round" jdbcType="TINYINT"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="lastSavedAt" column="last_saved_at" jdbcType="TIMESTAMP"/>
+            <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+            <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,student_count,
+        team_count,team_member_count,stage,
+        chess_round,chess_phase,proposal_stage,
+        proposal_round,status,last_saved_at,
+        gmt_create,gmt_update
+    </sql>
+</mapper>

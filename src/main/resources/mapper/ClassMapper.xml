@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.org.shelly.edu.mapper.ClassMapper">
 
-    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Class">
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Classes">
             <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="classCode" column="class_code" jdbcType="VARCHAR"/>
             <result property="courseId" column="course_id" jdbcType="BIGINT"/>

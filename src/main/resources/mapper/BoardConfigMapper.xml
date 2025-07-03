@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.org.shelly.edu.mapper.BoardConfigMapper">
+
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.BoardConfig">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="gameId" column="game_id" jdbcType="BIGINT"/>
+            <result property="totalTiles" column="total_tiles" jdbcType="INTEGER"/>
+            <result property="specialTileIds" column="special_tile_ids" jdbcType="VARCHAR"/>
+            <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,game_id,total_tiles,
+        special_tile_ids,gmt_create
+    </sql>
+</mapper>

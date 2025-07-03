@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.org.shelly.edu.mapper.TeamMemberMapper">
+
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.TeamMember">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="teamId" column="team_id" jdbcType="BIGINT"/>
+            <result property="studentId" column="student_id" jdbcType="BIGINT"/>
+            <result property="studentName" column="student_name" jdbcType="VARCHAR"/>
+            <result property="isLeader" column="is_leader" jdbcType="TINYINT"/>
+            <result property="individualScore" column="individual_score" jdbcType="INTEGER"/>
+            <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,team_id,student_id,
+        student_name,is_leader,individual_score,
+        gmt_create
+    </sql>
+</mapper>

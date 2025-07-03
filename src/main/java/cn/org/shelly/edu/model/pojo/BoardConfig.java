@@ -4,19 +4,17 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-
-import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
 
 /**
- * 分组合集与小组的关联表
- * @TableName team_set_team
+ * 棋盘配置表：记录格子总数、特殊格子
+ * @TableName board_config
  */
-@TableName(value ="team_set_team")
+@TableName(value ="board_config")
 @Data
-public class TeamSetTeam implements Serializable {
+public class BoardConfig implements Serializable {
     /**
      * 
      */
@@ -24,24 +22,29 @@ public class TeamSetTeam implements Serializable {
     private Long id;
 
     /**
-     * 分组合集ID
+     * 所属游戏ID
      */
-    @TableField(value = "team_set_id")
-    private Long teamSetId;
+    @TableField(value = "game_id")
+    private Long gameId;
 
     /**
-     * 小组ID
+     * 棋盘总格子数
      */
-    @TableField(value = "team_id")
-    private Long teamId;
+    @TableField(value = "total_tiles")
+    private Integer totalTiles;
+
+    /**
+     * 特殊格子列表（逗号分隔）
+     */
+    @TableField(value = "special_tile_ids")
+    private String specialTileIds;
 
     /**
      * 
      */
-    @TableField(value = "created_at")
-    private Date createdAt;
+    @TableField(value = "gmt_create")
+    private Date gmtCreate;
 
     @TableField(exist = false)
-    @Serial
     private static final long serialVersionUID = 1L;
 }

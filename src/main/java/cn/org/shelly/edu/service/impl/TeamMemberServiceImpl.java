@@ -1,0 +1,22 @@
+package cn.org.shelly.edu.service.impl;
+
+import cn.org.shelly.edu.mapper.TeamMemberMapper;
+import cn.org.shelly.edu.model.pojo.TeamMember;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.stereotype.Service;
+
+/**
+* @author Shelly6
+* @description 针对表【team_member(小组成员表：支持灵活扩展、个体得分、动态统计)】的数据库操作Service实现
+* @createDate 2025-07-03 20:58:24
+*/
+@Service
+public class TeamMemberServiceImpl extends ServiceImpl<TeamMemberMapper, TeamMember>
+    implements IService<TeamMember> {
+
+}
+
+
+
+

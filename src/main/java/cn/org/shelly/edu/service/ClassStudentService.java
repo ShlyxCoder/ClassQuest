@@ -1,4 +1,5 @@
 package cn.org.shelly.edu.service;
+import cn.org.shelly.edu.model.dto.StudentExcelDTO;
 import cn.org.shelly.edu.model.pojo.ClassStudent;
 import com.baomidou.mybatisplus.extension.service.IService;
 
@@ -9,4 +10,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface ClassStudentService extends IService<ClassStudent> {
 
+    Boolean createStudent(StudentExcelDTO studentExcelDTO, Long id);
 }
