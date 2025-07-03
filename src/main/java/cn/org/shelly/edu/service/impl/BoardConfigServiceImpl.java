@@ -2,7 +2,7 @@ package cn.org.shelly.edu.service.impl;
 
 import cn.org.shelly.edu.mapper.BoardConfigMapper;
 import cn.org.shelly.edu.model.pojo.BoardConfig;
-import com.baomidou.mybatisplus.extension.service.IService;
+import cn.org.shelly.edu.service.BoardConfigService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 */
 @Service
 public class BoardConfigServiceImpl extends ServiceImpl<BoardConfigMapper, BoardConfig>
-    implements IService<BoardConfig> {
+    implements BoardConfigService {
 
 }
 

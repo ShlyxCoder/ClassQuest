@@ -1,7 +1,7 @@
 package cn.org.shelly.edu.service.impl;
 import cn.org.shelly.edu.mapper.TeamScoreLogMapper;
 import cn.org.shelly.edu.model.pojo.TeamScoreLog;
-import com.baomidou.mybatisplus.extension.service.IService;
+import cn.org.shelly.edu.service.TeamScoreLogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 */
 @Service
 public class TeamScoreLogServiceImpl extends ServiceImpl<TeamScoreLogMapper, TeamScoreLog>
-    implements IService<TeamScoreLog> {
+    implements TeamScoreLogService {
 
 }
 

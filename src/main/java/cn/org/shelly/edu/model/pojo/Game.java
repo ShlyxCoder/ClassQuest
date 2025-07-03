@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -99,6 +101,7 @@ public class Game implements Serializable {
     @TableField(value = "gmt_update")
     private Date gmtUpdate;
 
+    @Serial
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }

@@ -44,7 +44,9 @@ public enum RedisConstants {
     VERIFICATION_CODE("Verification:code:", 300L, TimeUnit.SECONDS),
 
     USER_TOKEN("User:token:", 3L,TimeUnit.DAYS ),
-    USER_INFO("User:info:",3L ,TimeUnit.DAYS );
+    USER_INFO("User:info:",3L ,TimeUnit.DAYS ),
+    CAPTCHA_CODE_KEY_PREFIX("Captcha:code:", 300L, TimeUnit.SECONDS),
+    LOGIN_FAIL_KEY_PREFIX("Login:fail:", 900L, TimeUnit.SECONDS);
     /**
      * 键
      */

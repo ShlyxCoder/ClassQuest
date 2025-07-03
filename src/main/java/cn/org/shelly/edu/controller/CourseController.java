@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/course")
 @RequiredArgsConstructor
-@Tag(name= "课程管理")
+@Tag(name= "课程管理(前端暂时忽略)")
 public class CourseController {
     private final CourseService courseService;
     @PostMapping

@@ -2,7 +2,8 @@ package cn.org.shelly.edu.service.impl;
 
 import cn.org.shelly.edu.mapper.GameMapper;
 import cn.org.shelly.edu.model.pojo.Game;
-import com.baomidou.mybatisplus.extension.service.IService;
+import cn.org.shelly.edu.model.req.GameInitReq;
+import cn.org.shelly.edu.service.GameService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -13,8 +14,12 @@ import org.springframework.stereotype.Service;
 */
 @Service
 public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
-    implements IService<Game> {
+    implements GameService {
 
+    @Override
+    public void init(GameInitReq req) {
+
+    }
 }
 
 

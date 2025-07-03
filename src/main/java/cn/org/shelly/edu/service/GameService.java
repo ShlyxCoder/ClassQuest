@@ -1,6 +1,6 @@
-package cn.org.shelly.edu.service
-;
+package cn.org.shelly.edu.service;
 import cn.org.shelly.edu.model.pojo.Game;
+import cn.org.shelly.edu.model.req.GameInitReq;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 /**
@@ -10,4 +10,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface GameService extends IService<Game> {
 
+    void init(GameInitReq req);
 }

@@ -11,7 +11,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface UserService extends IService<User> {
 
-    String login(LoginParam param);
+    void login(LoginParam param);
 
     void regist(UserReq req);
 

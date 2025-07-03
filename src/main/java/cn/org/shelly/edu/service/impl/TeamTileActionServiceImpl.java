@@ -1,7 +1,7 @@
 package cn.org.shelly.edu.service.impl;
 import cn.org.shelly.edu.mapper.TeamTileActionMapper;
 import cn.org.shelly.edu.model.pojo.TeamTileAction;
-import com.baomidou.mybatisplus.extension.service.IService;
+import cn.org.shelly.edu.service.TeamTileActionService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +12,7 @@ import org.springframework.stereotype.Service;
 */
 @Service
 public class TeamTileActionServiceImpl extends ServiceImpl<TeamTileActionMapper, TeamTileAction>
-    implements IService<TeamTileAction> {
-
+    implements TeamTileActionService {
 }
 
 

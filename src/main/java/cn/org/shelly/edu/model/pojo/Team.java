@@ -65,6 +65,9 @@ public class Team implements Serializable {
     @TableField(value = "gmt_update")
     private Date gmtUpdate;
 
+    @TableField(value = "alive")
+    private Integer alive;
+
     @TableField(exist = false)
     @Serial
     private static final long serialVersionUID = 1L;

@@ -2,6 +2,9 @@ package cn.org.shelly.edu.controller;
 
 import cn.dev33.satoken.annotation.SaIgnore;
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.captcha.CaptchaUtil;
+import cn.hutool.captcha.LineCaptcha;
+import cn.hutool.core.codec.Base64;
 import cn.org.shelly.edu.annotation.AccessLimit;
 import cn.org.shelly.edu.common.Result;
 import cn.org.shelly.edu.constants.RedisConstants;
@@ -20,6 +23,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import static cn.org.shelly.edu.constants.RedisConstants.CAPTCHA_CODE_KEY_PREFIX;
+import static cn.org.shelly.edu.constants.RedisConstants.LOGIN_FAIL_KEY_PREFIX;
 
 @RestController
 @RequestMapping("/user")
@@ -43,7 +52,7 @@ public class UserController {
         StpUtil.logout(StpUtil.getLoginId());
         return Result.success();
     }
-    @Operation(summary = "发送验证码")
+    @Operation(summary = "发送邮箱验证码")
     @AccessLimit(seconds = 60, maxCount = 1)
     @SaIgnore
     @GetMapping("/sendCode")
@@ -104,4 +113,27 @@ public class UserController {
         userService.updateInfo(param);
         return Result.success();
     }
+//    @GetMapping("/captcha")
+//    @Operation(summary = "获取图形验证码")
+//    public Result<String> getCaptchaBase64(@RequestParam String identity) {
+//        String failKey = LOGIN_FAIL_KEY_PREFIX + identity;
+//        int failCount = Optional.ofNullable(redisUtil.get(failKey, Integer.class)).orElse(0);
+//
+//        // 失败次数未达到阈值，不需要验证码
+//        if (failCount < 3) {
+//            return Result.success("NO_CAPTCHA_NEEDED");
+//        }
+//
+//        // 失败次数≥3，生成图形验证码
+//        LineCaptcha captcha = CaptchaUtil.createLineCaptcha(120, 40, 4, 80);
+//        String code = captcha.getCode();
+//
+//        // 缓存验证码，过期5分钟
+//        String captchaKey = CAPTCHA_CODE_KEY_PREFIX + identity;
+//        redisUtil.set(captchaKey, code, 5, TimeUnit.MINUTES);
+//
+//        // 返回Base64图片字符串
+//        return Result.success(Base64.encode(captcha.getImageBytes()));
+//    }
+
 }

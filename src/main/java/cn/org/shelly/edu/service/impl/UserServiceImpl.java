@@ -17,6 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
+import static cn.org.shelly.edu.constants.RedisConstants.CAPTCHA_CODE_KEY_PREFIX;
 import static cn.org.shelly.edu.utils.EmailUtils.isValidEmail;
 
 /**
@@ -31,11 +34,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private final RedisUtil redisUtil;
 
     @Override
-    public String login(LoginParam param) {
+    public void login(LoginParam param) {
+//        int loginType = param.getLoginType();
+//        String identity = loginType == 0 ? param.getEmail() : param.getUsername();
+//        String failKey = RedisConstants.LOGIN_FAIL_KEY_PREFIX +  identity;
+//        String captchaKey = CAPTCHA_CODE_KEY_PREFIX + identity;
+//        int failCount = Optional.ofNullable(redisUtil.get(failKey, Integer.class)).orElse(0);
+//        // 登录失败次数达到阈值，校验图形验证码
+//        if (failCount >= 3) {
+//            String expectedCaptcha = redisUtil.get(captchaKey, String.class);
+//            if (StringUtils.isBlank(param.getCaptchaCode()) || !param.getCaptchaCode().equalsIgnoreCase(expectedCaptcha)) {
+//                throw new CustomException("图形验证码错误或已过期");
+//            }
+//        }
         User user;
         if(param.getLoginType() == 0){
             isValidEmail(param.getEmail());
-            checkVerificationCode(param.getEmail(),param.getCode());
+            checkVerificationCode(param.getEmail(),param.getEmail());
             user = lambdaQuery()
                     .eq(User::getEmail,param.getEmail())
                     .one();
@@ -56,8 +71,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                 throw new CustomException(CodeEnum.PASSWORD_ERROR);
             }
         }
+        //redisUtil.remove(failKey);
         handleLoginSuccess(user);
-        return StpUtil.getTokenValue();
     }
 
     @Override

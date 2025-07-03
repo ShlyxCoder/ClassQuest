@@ -9,8 +9,10 @@ public class LoginParam {
     private String username;
     @Schema(description = "密码")
     private String password;
-    @Schema(description = "验证码")
-    private String code;
+    @Schema(description = "邮箱验证码")
+    private String emailCode;
+//    @Schema(description = "图形验证码")
+//    private String captchaCode;
     @Schema(description = "邮箱")
     private String email;
     @Schema(description = "登录类型0:邮箱 1:账密(默认)")

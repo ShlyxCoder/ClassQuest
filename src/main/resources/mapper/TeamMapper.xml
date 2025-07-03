@@ -13,11 +13,12 @@
             <result property="totalScore" column="total_score" jdbcType="INTEGER"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
+            <result property="alive" column="alive" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,game_id,leader_id,
         leader_name,total_members,total_score,
-        gmt_create,gmt_update
+        gmt_create,gmt_update,alive
     </sql>
 </mapper>

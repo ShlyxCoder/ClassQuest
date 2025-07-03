@@ -2,7 +2,7 @@ package cn.org.shelly.edu.service.impl;
 
 import cn.org.shelly.edu.mapper.TeamMemberMapper;
 import cn.org.shelly.edu.model.pojo.TeamMember;
-import com.baomidou.mybatisplus.extension.service.IService;
+import cn.org.shelly.edu.service.TeamMemberService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 */
 @Service
 public class TeamMemberServiceImpl extends ServiceImpl<TeamMemberMapper, TeamMember>
-    implements IService<TeamMember> {
+    implements TeamMemberService {
 
 }
 

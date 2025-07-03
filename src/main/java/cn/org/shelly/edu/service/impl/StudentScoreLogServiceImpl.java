@@ -2,7 +2,7 @@ package cn.org.shelly.edu.service.impl;
 
 import cn.org.shelly.edu.mapper.StudentScoreLogMapper;
 import cn.org.shelly.edu.model.pojo.StudentScoreLog;
-import com.baomidou.mybatisplus.extension.service.IService;
+import cn.org.shelly.edu.service.StudentScoreLogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 */
 @Service
 public class StudentScoreLogServiceImpl extends ServiceImpl<StudentScoreLogMapper, StudentScoreLog>
-    implements IService<StudentScoreLog> {
+    implements StudentScoreLogService {
 
 }
 
