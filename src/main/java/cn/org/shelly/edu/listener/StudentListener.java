@@ -34,7 +34,6 @@ public class StudentListener implements ReadListener<StudentExcelDTO> {
         } catch (Exception e) {
             failCount.incrementAndGet();
             log.error("导入失败：{}, 错误信息：{}", studentExcelDTO, e.getMessage());
-            // 不抛异常，否则中断整个流程
         }
     }
 

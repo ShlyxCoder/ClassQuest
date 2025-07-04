@@ -93,8 +93,8 @@ public class TeamController {
                 .orElseThrow(() -> new CustomException("游戏不存在"));
         // 查询班级所有学生
         List<ClassStudent> allClassStudents = classStudentService.lambdaQuery()
-                .eq(ClassStudent::getCid, cid)
                 .select(ClassStudent::getId, ClassStudent::getName)
+                .eq(ClassStudent::getCid, cid)
                 .list();
         // 已加入小组的 studentId
         Set<Long> joinedStudentIds = allMembers.stream()
@@ -117,10 +117,8 @@ public class TeamController {
         if (team == null) {
             throw new CustomException("小组不存在");
         }
-
         // 2. 查询该小组原始成员
         List<TeamMember> oldMembers = teamMemberService.lambdaQuery().eq(TeamMember::getTeamId, teamId).list();
-
         // 3. 删除旧成员
         if (!oldMembers.isEmpty()) {
             List<Long> memberIds = oldMembers.stream().map(TeamMember::getId).toList();
@@ -130,7 +128,6 @@ public class TeamController {
         List<ClassStudent> students = classStudentService.listByIds(req.getMemberIds());
         Map<Long, String> idToName = students.stream()
                 .collect(Collectors.toMap(ClassStudent::getId, ClassStudent::getName));
-        Date now = new Date();
         List<TeamMember> newMembers = req.getMemberIds().stream().map(id -> {
             TeamMember tm = new TeamMember();
             tm.setTeamId(teamId);
@@ -145,7 +142,6 @@ public class TeamController {
         team.setLeaderId(req.getLeaderId());
         team.setLeaderName(idToName.get(req.getLeaderId()));
         team.setTotalMembers(req.getMemberIds().size());
-        team.setGmtUpdate(now);
         teamService.updateById(team);
         // 6. 查询当前班级的自由人
         Long cid = gameService.getById(team.getGameId()).getCid();
@@ -162,7 +158,6 @@ public class TeamController {
                 .filter(s -> !assignedIds.contains(s.getId()))
                 .map(s -> new FreeStudentResp(s.getId(), s.getName()))
                 .toList();
-
         // 7. 返回最新 team 详情
         TeamDetailResp resp = new TeamDetailResp();
         resp.setTeamId(team.getId());

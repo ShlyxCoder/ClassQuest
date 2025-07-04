@@ -3,6 +3,7 @@ import cn.org.shelly.edu.model.pojo.Game;
 import cn.org.shelly.edu.model.req.GameInitReq;
 import cn.org.shelly.edu.model.resp.TeamUploadResp;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
 * @author Shelly6
@@ -12,4 +13,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 public interface GameService extends IService<Game> {
 
     TeamUploadResp init(GameInitReq req);
+
+    Boolean upload(MultipartFile file, Long id);
 }

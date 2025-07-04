@@ -31,10 +31,15 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             memberCount = 3;
         }
         List<List<String>> headers = new ArrayList<>();
+        // 组号
         headers.add(List.of("组号"));
+        // 组长及学号
         headers.add(List.of("组长"));
+        headers.add(List.of("组长学号"));
+        // 队员及学号
         for (int i = 1; i <= memberCount; i++) {
             headers.add(List.of("队员" + i));
+            headers.add(List.of("队员" + i + "学号"));
         }
         List<List<String>> emptyData = new ArrayList<>();
         try {

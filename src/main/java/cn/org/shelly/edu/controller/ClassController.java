@@ -30,12 +30,13 @@ import java.util.ArrayList;
 @RequestMapping("/class")
 @RequiredArgsConstructor
 @Tag(name= "班级管理")
+//SNO CHECKED
 public class ClassController {
     private final ClassService classService;
     private final ClassStudentService classStudentService;
     @PostMapping
     @Operation(summary = "添加班级")
-    public Result<?> addClass(@RequestParam @Schema(description = "班级编码（习近平思想2003）") String code){
+    public Result<Void> addClass(@RequestParam @Schema(description = "班级编码（习近平思想2003）") String code){
         Long uid = StpUtil.getLoginIdAsLong();
         Classes c = new Classes().setCourseId(-1L).setClassCode(code).setTId(uid).setStatus(1).setCurrentStudents(0);
         Long count = classService.lambdaQuery()
@@ -50,7 +51,7 @@ public class ClassController {
     }
     @DeleteMapping("/{id}")
     @Operation(summary = "删除班级")
-    public Result<?> delete(@PathVariable("id") Long id){
+    public Result<Void> delete(@PathVariable("id") Long id){
         classService.removeById(id);
         return Result.success();
     }
@@ -62,7 +63,7 @@ public class ClassController {
 
     @PutMapping("/{id}/{status}")
     @Operation(summary = "修改班级状态")
-    public Result<?> update(@PathVariable("id") Long id, @PathVariable("status") Integer status){
+    public Result<Void> update(@PathVariable("id") Long id, @PathVariable("status") Integer status){
         Long uid = StpUtil.getLoginIdAsLong();
         Classes c = classService.lambdaQuery()
                 .eq(Classes::getTId,uid)
