@@ -14,4 +14,6 @@ public class GameInitReq {
     private Integer studentNum;
     @Schema(description = "小组成员基准数量")
     private Integer teamMemberCount;
+    @Schema(description = "班级id")
+    private Long cid;
 }

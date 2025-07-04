@@ -9,6 +9,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 游戏主表：记录游戏基本状态、元信息、阶段进度等
@@ -16,6 +17,7 @@ import lombok.Data;
  */
 @TableName(value ="game")
 @Data
+@Accessors(chain = true)
 public class Game implements Serializable {
     /**
      * 游戏ID
@@ -26,8 +28,8 @@ public class Game implements Serializable {
     /**
      * 班号
      */
-    @TableField(value = "name")
-    private String name;
+    @TableField(value = "cid")
+    private Long cid;
 
     /**
      * 学生总数

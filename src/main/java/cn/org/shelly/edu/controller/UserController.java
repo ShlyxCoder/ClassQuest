@@ -53,7 +53,7 @@ public class UserController {
         return Result.success();
     }
     @Operation(summary = "发送邮箱验证码")
-    @AccessLimit(seconds = 60, maxCount = 1)
+    //@AccessLimit(seconds = 60, maxCount = 1)
     @SaIgnore
     @GetMapping("/sendCode")
     public Result<String> sendCode(@RequestParam("identifier") String identifier){
@@ -76,7 +76,7 @@ public class UserController {
     @PostMapping("/regist")
     public Result<String> regist(@RequestBody UserReq req){
         userService.regist(req);
-        return Result.fail("注册成功！");
+        return Result.success("注册成功！");
     }
     @Operation(summary = "获取用户信息（登录时自动获取）")
     @GetMapping("/info")

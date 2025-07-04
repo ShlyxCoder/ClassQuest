@@ -1,6 +1,8 @@
 package cn.org.shelly.edu.service;
 import cn.org.shelly.edu.model.pojo.Team;
 import com.baomidou.mybatisplus.extension.service.IService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
 * @author Shelly6
@@ -8,5 +10,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 * @createDate 2025-07-02 10:22:21
 */
 public interface TeamService extends IService<Team> {
+
+    void downloadTemplate(int memberCount, HttpServletResponse response);
 
 }

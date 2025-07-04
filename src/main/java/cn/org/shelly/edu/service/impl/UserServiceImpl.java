@@ -14,6 +14,7 @@ import cn.org.shelly.edu.utils.RedisUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,7 @@ import static cn.org.shelly.edu.utils.EmailUtils.isValidEmail;
 * @createDate 2025-07-02 10:22:21
 */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService {
@@ -49,10 +51,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 //        }
         User user;
         if(param.getLoginType() == 0){
-            isValidEmail(param.getEmail());
-            checkVerificationCode(param.getEmail(),param.getEmail());
+            isValidEmail(param.getUsername());
+            checkVerificationCode(param.getUsername(),param.getUsername());
             user = lambdaQuery()
-                    .eq(User::getEmail,param.getEmail())
+                    .eq(User::getEmail,param.getUsername())
                     .one();
             if(user == null){
                 throw new CustomException(CodeEnum.USER_NOT_FOUND);
@@ -77,44 +79,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Override
     public void regist(UserReq req) {
-        String code = req.getEmail();
-        if(StringUtils.isBlank(code)){
-            throw new CustomException("验证码不能为空");
-        }
-        if(StringUtils.isBlank(req.getUsername())){
+        log.info("用户注册请求：{}", req);
+        // 校验邮箱
+        String email = StringUtils.trimToEmpty(req.getEmail());
+        if (StringUtils.isBlank(email)) {
             throw new CustomException("邮箱不能为空");
         }
-        EmailUtils.isValidEmail(req.getUsername());
-        String redisKeyPrefix = RedisConstants.VERIFICATION_CODE.getKey();
-        // 从缓存中获取验证码
-        String redisKey = redisKeyPrefix + req.getUsername();
-        if (redisUtil.getObject(redisKey) == null || redisUtil.getTime(redisKey) == 0) {
-            throw new CustomException(CodeEnum.CODE_EXPIRED);
+        // 校验验证码
+        String code = StringUtils.trimToEmpty(req.getCode());
+        if (StringUtils.isBlank(code)) {
+            throw new CustomException("验证码不能为空");
         }
-        // 验证验证码是否匹配
-        if (!code.equals(redisUtil.getObject(redisKey).toString())) {
-            throw new CustomException(CodeEnum.CODE_ERROR);
-        }
-        if(StringUtils.isBlank(req.getPassword())){
+        // 校验密码
+        String password = req.getPassword();
+        if (StringUtils.isBlank(password)) {
             throw new CustomException("密码不能为空");
         }
-        Long count = lambdaQuery()
-                .eq(User::getUsername, req.getUsername())
-                .count();
-        if (count > 0) {
-            throw new CustomException("用户名已存在");
+        // 校验邮箱格式
+        EmailUtils.isValidEmail(email);
+        // 设置用户名为邮箱
+        req.setUsername(email);
+        req.setEmail(email);
+        // 读取Redis验证码
+        String redisKey = RedisConstants.VERIFICATION_CODE.getKey() + email;
+        Object redisValObj = redisUtil.getObject(redisKey);
+        String redisCode = redisValObj != null ? redisValObj.toString().trim() : null;
+        if (redisCode == null || redisUtil.getTime(redisKey) == 0) {
+            throw new CustomException(CodeEnum.CODE_EXPIRED);
         }
-        Long id = lambdaQuery()
-                .eq(User::getEmail, req.getEmail())
-                .count();
-        if(id > 0){
+        log.info("输入验证码: [{}], Redis验证码: [{}]", code, redisCode);
+        if (!code.equals(redisCode)) {
+            throw new CustomException(CodeEnum.CODE_ERROR);
+        }
+        // 校验邮箱是否已注册
+        long count = lambdaQuery().eq(User::getEmail, email).count();
+        if (count > 0) {
             throw new CustomException("邮箱已存在");
         }
-        User po = UserReq.toUserPo(req);
-        po.setType(0);
-        po.setPassword(PasswordUtils.encrypt(req.getPassword()));
-        save(po);
+        // 构建用户对象并保存
+        User user = UserReq.toUserPo(req);
+        user.setType(0);
+        user.setPassword(PasswordUtils.encrypt(password));
+        save(user);
     }
+
 
     @Override
     public void updateInfo(UserReq param) {

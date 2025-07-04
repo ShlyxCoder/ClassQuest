@@ -13,9 +13,7 @@ public class LoginParam {
     private String emailCode;
 //    @Schema(description = "图形验证码")
 //    private String captchaCode;
-    @Schema(description = "邮箱")
-    private String email;
-    @Schema(description = "登录类型0:邮箱 1:账密(默认)")
+    @Schema(description = "登录类型 0:邮箱 1:账密(默认)")
     private int loginType = 1;
 
 }

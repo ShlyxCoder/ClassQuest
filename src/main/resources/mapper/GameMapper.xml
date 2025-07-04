@@ -6,7 +6,7 @@
 
     <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Game">
             <id property="id" column="id" jdbcType="BIGINT"/>
-            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="cid" column="cid" jdbcType="BIGINT"/>
             <result property="studentCount" column="student_count" jdbcType="INTEGER"/>
             <result property="teamCount" column="team_count" jdbcType="INTEGER"/>
             <result property="teamMemberCount" column="team_member_count" jdbcType="INTEGER"/>
@@ -22,7 +22,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,name,student_count,
+        id,cid,student_count,
         team_count,team_member_count,stage,
         chess_round,chess_phase,proposal_stage,
         proposal_round,status,last_saved_at,

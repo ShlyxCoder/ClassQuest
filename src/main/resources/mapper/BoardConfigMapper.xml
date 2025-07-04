@@ -8,12 +8,17 @@
             <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="gameId" column="game_id" jdbcType="BIGINT"/>
             <result property="totalTiles" column="total_tiles" jdbcType="INTEGER"/>
-            <result property="specialTileIds" column="special_tile_ids" jdbcType="VARCHAR"/>
+            <result property="blackSwampTiles" column="black_swamp_tiles" jdbcType="VARCHAR"/>
+            <result property="blindBoxTiles" column="blind_box_tiles" jdbcType="VARCHAR"/>
+            <result property="fortressTiles" column="fortress_tiles" jdbcType="VARCHAR"/>
+            <result property="goldCenterTiles" column="gold_center_tiles" jdbcType="VARCHAR"/>
+            <result property="opportunityTiles" column="opportunity_tiles" jdbcType="VARCHAR"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,game_id,total_tiles,
-        special_tile_ids,gmt_create
+        black_swamp_tiles,blind_box_tiles,fortress_tiles,
+        gold_center_tiles,opportunity_tiles,gmt_create
     </sql>
 </mapper>

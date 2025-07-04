@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -16,7 +18,7 @@ import lombok.Data;
 @Data
 public class BoardConfig implements Serializable {
     /**
-     * 
+     *
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
@@ -34,17 +36,42 @@ public class BoardConfig implements Serializable {
     private Integer totalTiles;
 
     /**
-     * 特殊格子列表（逗号分隔）
+     * 黑沼泽格子编号（逗号分隔）
      */
-    @TableField(value = "special_tile_ids")
-    private String specialTileIds;
+    @TableField(value = "black_swamp_tiles")
+    private String blackSwampTiles;
 
     /**
-     * 
+     * 盲盒秘境格子编号（逗号分隔）
+     */
+    @TableField(value = "blind_box_tiles")
+    private String blindBoxTiles;
+
+    /**
+     * 决斗要塞格子编号（逗号分隔）
+     */
+    @TableField(value = "fortress_tiles")
+    private String fortressTiles;
+
+    /**
+     * 黄金中心格子编号（逗号分隔）
+     */
+    @TableField(value = "gold_center_tiles")
+    private String goldCenterTiles;
+
+    /**
+     * 机会宝地格子编号（逗号分隔）
+     */
+    @TableField(value = "opportunity_tiles")
+    private String opportunityTiles;
+
+    /**
+     *
      */
     @TableField(value = "gmt_create")
     private Date gmtCreate;
 
     @TableField(exist = false)
+    @Serial
     private static final long serialVersionUID = 1L;
 }

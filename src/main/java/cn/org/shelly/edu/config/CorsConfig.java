@@ -1,5 +1,6 @@
 package cn.org.shelly.edu.config;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -12,11 +13,16 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**") // 所有接口
-                .allowCredentials(true) // 是否发送 Cookie
-                .allowedOriginPatterns("*") // 支持域
-                .allowedMethods("GET", "POST", "PUT", "DELETE" , "PATCH") // 支持方法
+        registry.addMapping("/**")
+                .allowCredentials(true)
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE" , "PATCH","OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("*");
     }
+    @PostConstruct
+    public void init() {
+        System.out.println("CorsConfig loaded");
+    }
+
 }
