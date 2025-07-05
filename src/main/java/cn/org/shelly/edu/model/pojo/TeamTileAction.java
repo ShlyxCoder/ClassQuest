@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -34,7 +36,7 @@ public class TeamTileAction implements Serializable {
     private Long teamId;
 
     /**
-     * 第几轮
+     * 棋盘赛第几轮
      */
     @TableField(value = "round")
     private Integer round;
@@ -46,53 +48,64 @@ public class TeamTileAction implements Serializable {
     private Integer phase;
 
     /**
-     * 格子编号
+     * 这一轮所有格子编号（逗号分隔）
      */
-    @TableField(value = "tile_index")
-    private Integer tileIndex;
+    @TableField(value = "all_tiles")
+    private String allTiles;
 
     /**
-     * 是否已触发效果
+     * 盲盒秘境格子编号（逗号分隔）
      */
-    @TableField(value = "is_triggered")
-    private Integer isTriggered;
+    @TableField(value = "blind_box_tiles")
+    private String blindBoxTiles;
 
     /**
-     * 格子是否仍归小组所有，false表示已被扣除或失去
+     * 决斗要塞格子编号（逗号分隔）
      */
-    @TableField(value = "is_active")
-    private Integer isActive;
+    @TableField(value = "fortress_tiles")
+    private String fortressTiles;
 
     /**
-     * 触发效果类型（可选）
+     * 黄金中心格子编号（逗号分隔）
      */
-    @TableField(value = "trigger_type")
-    private Integer triggerType;
+    @TableField(value = "gold_center_tiles")
+    private String goldCenterTiles;
 
     /**
-     * 得分变化（可选）
+     * 机会宝地格子编号（逗号分隔）
      */
-    @TableField(value = "value_change")
-    private Integer valueChange;
+    @TableField(value = "opportunity_tiles")
+    private String opportunityTiles;
 
     /**
-     * 触发效果说明（可选）
+     * 该轮选的原始格子数量
      */
-    @TableField(value = "trigger_desc")
-    private String triggerDesc;
+    @TableField(value = "original_tile_count")
+    private Integer originalTileCount;
 
     /**
-     * 记录时间
+     * 该轮结算后剩余格子数量
+     */
+    @TableField(value = "settled_tile_count")
+    private Integer settledTileCount;
+
+    /**
+     * 记录创建时间
      */
     @TableField(value = "gmt_create")
     private Date gmtCreate;
 
     /**
-     * 
+     * 记录更新时间
      */
     @TableField(value = "gmt_update")
     private Date gmtUpdate;
 
+
+    @TableField(value = "selected")
+    private Integer selected;
+
     @TableField(exist = false)
+    @Serial
     private static final long serialVersionUID = 1L;
 }

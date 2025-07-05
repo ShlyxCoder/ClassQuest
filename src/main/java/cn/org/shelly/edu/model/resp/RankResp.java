@@ -9,26 +9,10 @@ import java.util.List;
 @Schema(description = "排行榜响应")
 public class RankResp {
 
-    @Schema(description = "小组排名")
-    private List<TeamRankDTO> teamRanks;
 
     @Schema(description = "个人排名")
     private List<StudentRankDTO> studentRanks;
 
-    @Data
-    @Schema(description = "小组排名信息")
-    public static class TeamRankDTO {
-        @Schema(description = "小组编号")
-        private Long teamId;
-        @Schema(description = "组长姓名")
-        private String leaderName;
-        @Schema(description = "小组人数")
-        private Integer totalMembers;
-        @Schema(description = "队长学号")
-        private String leaderSno;
-        @Schema(description = "小组总得分")
-        private Integer totalScore;
-    }
 
     @Data
     @Schema(description = "个人排名信息")

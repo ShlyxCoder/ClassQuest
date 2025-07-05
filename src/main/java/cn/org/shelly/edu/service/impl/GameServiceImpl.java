@@ -1,5 +1,6 @@
 package cn.org.shelly.edu.service.impl;
 
+import cn.org.shelly.edu.controller.GameController;
 import cn.org.shelly.edu.enums.CodeEnum;
 import cn.org.shelly.edu.exception.CustomException;
 import cn.org.shelly.edu.exception.ExcelReadStopException;
@@ -10,8 +11,13 @@ import cn.org.shelly.edu.model.dto.TeamInfoDTO;
 import cn.org.shelly.edu.model.dto.TeamUploadDTO;
 import cn.org.shelly.edu.model.dto.XxtStudentScoreExcelDTO;
 import cn.org.shelly.edu.model.pojo.*;
+import cn.org.shelly.edu.model.req.AssignReq;
 import cn.org.shelly.edu.model.req.GameInitReq;
+import cn.org.shelly.edu.model.req.TileOccupyReq;
+import cn.org.shelly.edu.model.resp.TeamRankResp;
+import cn.org.shelly.edu.model.resp.TeamScoreRankResp;
 import cn.org.shelly.edu.model.resp.TeamUploadResp;
+import cn.org.shelly.edu.model.resp.UnselectedTeamResp;
 import cn.org.shelly.edu.service.*;
 import com.alibaba.excel.EasyExcelFactory;
 import com.alibaba.excel.context.AnalysisContext;
@@ -26,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -39,6 +46,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
     private final TeamService teamService;
     private final TeamMemberService teamMemberService;
     private final ClassService classService;
+    private final TeamTileActionService teamTileActionService;
+    private final BoardConfigService boardConfigService;
 
     @Override
     public TeamUploadResp init(GameInitReq req) {
@@ -62,17 +71,230 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
     }
 
     @Override
-    public Boolean upload(MultipartFile file, Long gameId) {
+    public List<TeamScoreRankResp> upload(MultipartFile file, Long gameId) {
+        // 1. 验证游戏状态
+        Game game = getById(gameId);
+        validateGameState(game);
+        // 2. 读取并验证上传文件
+        List<XxtStudentScoreExcelDTO> scores = validateAndParseFile(file);
+        // 3. 根据上传成绩构建：teamId -> 成绩列表 映射
+        Map<Long, List<XxtStudentScoreExcelDTO>> groupMap = buildTeamGroupMap(scores, gameId);
+        // 4. 获取该游戏所有小组映射：teamId -> Team
+        Map<Long, Team> teamMap = getTeamMapByGame(gameId);
+        // 5. 计算本轮小组得分，更新累计得分，并生成排行榜响应
+        List<TeamScoreRankResp> rankList = calculateAndUpdateTeamScoresAndGetRankResp(groupMap, game, teamMap);
+        // 6. 更新游戏阶段等信息
+        game.setChessPhase(1);
+        game.setStage(1);
+        game.setLastSavedAt(new Date());
+        updateById(game);
+        // 7. 返回本轮小组得分排名列表
+        return rankList;
+    }
+
+    @Override
+    public void uploadAssign(AssignReq req) {
+        Long gameId = req.getGameId();
+        Game game = getById(gameId);
+        Map<Long, Integer> teamAssignCount = req.getTeamAssignCount();
+        if (game == null) {
+            throw new CustomException("游戏不存在");
+        }
+        if (game.getStage() != 1 || game.getChessPhase() != 1) {
+            throw new CustomException("当前阶段不能上传领地");
+        }
+        List<TeamTileAction> teamTileActions = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : teamAssignCount.entrySet()) {
+            TeamTileAction teamTileAction = new TeamTileAction();
+            teamTileAction.setGameId(game.getId());
+            teamTileAction.setTeamId(entry.getKey());
+            teamTileAction.setRound(game.getChessRound());
+            teamTileAction.setPhase(1);
+            teamTileAction.setOriginalTileCount(entry.getValue());
+            teamTileAction.setSelected(0);
+            teamTileActions.add(teamTileAction);
+        }
+        teamTileActionService.saveBatch(teamTileActions);
+        game.setChessPhase(2);
+        updateById(game);
+    }
+
+    @Override
+    public List<UnselectedTeamResp> getUnselectedTeamsByGame(Long gameId) {
         Game game = getById(gameId);
         if (game == null) {
             throw new CustomException("游戏不存在");
         }
-        if(game.getStatus() != 1){
-            log.warn("游戏已结束");
+        if(game.getChessPhase() != 2){
+            throw new CustomException("当前不是走棋阶段");
         }
+        Map<Long, Team> teams = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .list()
+                .stream()
+                .collect(Collectors.toMap(Team::getId, team -> team));
+        // 查询当前轮次未选择的小组的格子行动记录
+        List<TeamTileAction> unselectedActions = teamTileActionService.lambdaQuery()
+                .eq(TeamTileAction::getGameId, gameId)
+                .eq(TeamTileAction::getRound, game.getChessRound())
+                .eq(TeamTileAction::getSelected, 0)
+                .list();
+        // 组装返回结果
+        return unselectedActions.stream()
+                .map(action -> {
+                    Team team = teams.get(action.getTeamId());
+                    UnselectedTeamResp resp = new UnselectedTeamResp();
+                    resp.setTeamId(action.getTeamId());
+                    if (team != null) {
+                        resp.setLeaderName(team.getLeaderName());
+                        resp.setSno(team.getSno());
+                        resp.setAssignCount(action.getOriginalTileCount());
+                        resp.setLeaderName(team.getLeaderName());
+                            resp.setLeaderId(team.getLeaderId());
+                    }
+                    return resp;
+                })
+                .toList();
+    }
+
+    @Override
+    public Boolean occupy(TileOccupyReq req) {
+        Game game = getById(req.getGameId());
+        if (game == null) {
+            throw new CustomException("游戏不存在");
+        }
+        if (game.getStage() != 1) {
+            throw new CustomException("当前不是棋盘赛阶段");
+        }
+        if (game.getChessPhase() != 2) {
+            throw new CustomException("当前不是上传领地阶段");
+        }
+        BoardConfig config = boardConfigService.lambdaQuery()
+                .eq(BoardConfig::getGameId, req.getGameId())
+                .one();
+        if (config == null) {
+            throw new CustomException("游戏配置不存在");
+        }
+        Set<Integer> blindBoxSet = parseTiles(config.getBlindBoxTiles());
+        Set<Integer> fortressSet = parseTiles(config.getFortressTiles());
+        Set<Integer> goldCenterSet = parseTiles(config.getGoldCenterTiles());
+        Set<Integer> opportunitySet = parseTiles(config.getOpportunityTiles());
+        // 前端传入的本轮选择的所有格子id
+        List<Integer> selectedTiles = req.getTileIds();
+        if (selectedTiles == null || selectedTiles.isEmpty()) {
+            throw new CustomException("请选择至少一个格子");
+        }
+        // 分类过滤
+        List<Integer> blindBoxTiles = new ArrayList<>();
+        List<Integer> fortressTiles = new ArrayList<>();
+        List<Integer> goldCenterTiles = new ArrayList<>();
+        List<Integer> opportunityTiles = new ArrayList<>();
+        for (Integer tileId : selectedTiles) {
+            if (blindBoxSet.contains(tileId)) {
+                blindBoxTiles.add(tileId);
+            }
+            if (fortressSet.contains(tileId)) {
+                fortressTiles.add(tileId);
+            }
+            if (goldCenterSet.contains(tileId)) {
+                goldCenterTiles.add(tileId);
+            }
+            if (opportunitySet.contains(tileId)) {
+                opportunityTiles.add(tileId);
+            }
+        }
+        String blindBoxStr = joinTiles(blindBoxTiles);
+        String fortressStr = joinTiles(fortressTiles);
+        String goldCenterStr = joinTiles(goldCenterTiles);
+        String opportunityStr = joinTiles(opportunityTiles);
+        String allTilesStr = joinTiles(selectedTiles);
+        TeamTileAction action = new TeamTileAction();
+        action.setGameId(req.getGameId());
+        action.setTeamId(req.getTeamId());
+        // 这里需要获取当前游戏的轮次，假设从game里拿
+        action.setRound(game.getChessRound());
+        action.setPhase(1); // 选格子阶段
+        action.setAllTiles(allTilesStr);
+        action.setBlindBoxTiles(blindBoxStr);
+        action.setFortressTiles(fortressStr);
+        action.setGoldCenterTiles(goldCenterStr);
+        action.setOpportunityTiles(opportunityStr);
+        // 结算格子数这里先等于原始数量，后续如果有扣除逻辑，再修改
+        action.setSettledTileCount(selectedTiles.size());
+        action.setSelected(1);
+        action.setGmtCreate(new Date());
+        action.setGmtUpdate(new Date());
+        boolean saved = teamTileActionService.save(action);
+        if (!saved) {
+            throw new CustomException("保存格子选择记录失败");
+        }
+        return true;
+    }
+
+    @Override
+    public List<TeamRankResp> getTeamRank(Game game) {
+        List<TeamTileAction> actions = teamTileActionService.lambdaQuery()
+                .eq(TeamTileAction::getGameId, game.getId())
+                .eq(TeamTileAction::getSelected, 1)
+                .list();
+        // 按 teamId 聚合 totalTile（结算后剩余格子数）
+        Map<Long, Integer> teamToTotalTile = new HashMap<>();
+        for (TeamTileAction action : actions) {
+            int settledCount = Optional.ofNullable(action.getSettledTileCount()).orElse(0);
+            teamToTotalTile.merge(action.getTeamId(), settledCount, Integer::sum);
+        }
+        // 查询游戏所有小组
+        List<Team> teams = teamService.lambdaQuery()
+                .eq(Team::getGameId, game.getId())
+                .list();
+        // 组装返回结果
+        List<TeamRankResp> rankList = new ArrayList<>();
+        for (Team team : teams) {
+            TeamRankResp resp = new TeamRankResp();
+            resp.setTeamId(team.getId());
+            resp.setLeaderName(team.getLeaderName());
+            resp.setTotalScore(Optional.ofNullable(team.getMemberScoreSum()).orElse(0));
+            resp.setTotalTile(teamToTotalTile.getOrDefault(team.getId(), 0));
+            resp.setLeaderSno(team.getSno());
+            rankList.add(resp);
+        }
+        // 按总领地数降序排序（可根据需求调整排序规则）
+        rankList.sort(Comparator.comparingInt(TeamRankResp::getTotalTile).reversed());
+        return rankList;
+    }
+
+    // 工具：解析逗号分隔字符串为Set<Integer>
+    private Set<Integer> parseTiles(String tilesStr) {
+        if (!StringUtils.hasText(tilesStr)) {
+            return Collections.emptySet();
+        }
+        return Arrays.stream(tilesStr.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
+                .collect(Collectors.toSet());
+    }
+
+    // 工具：把List<Integer>拼成逗号分隔字符串
+    private String joinTiles(List<Integer> tiles) {
+        if (tiles == null || tiles.isEmpty()) {
+            return "";
+        }
+        return tiles.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    }
+
+
+    private void validateGameState(Game game) {
+        if (game == null) throw new CustomException("游戏不存在");
+        if (game.getStatus() != 1) log.warn("游戏已结束");
         if (game.getStage() != 1 || game.getChessPhase() != 0) {
             throw new CustomException("当前不可进行该操作");
         }
+    }
+
+    private List<XxtStudentScoreExcelDTO> validateAndParseFile(MultipartFile file) {
         XxtStudentScoreListener listener = new XxtStudentScoreListener();
         try {
             EasyExcelFactory.read(file.getInputStream(), listener)
@@ -81,103 +303,104 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     .headRowNumber(6)
                     .doRead();
         } catch (ExcelReadStopException e) {
-            log.info("导入数据结束，读取中断：{}", e.getMessage());
+            log.info("读取中断: {}", e.getMessage());
         } catch (IOException e) {
             throw new CustomException(CodeEnum.SYSTEM_ERROR);
         }
         List<XxtStudentScoreExcelDTO> scores = listener.getData();
-        if (CollectionUtils.isEmpty(scores)) {
-            log.warn("上传数据为空");
-            throw new CustomException("上传数据为空");
-        }
-        // 获取上传的学号集合
+        if (CollectionUtils.isEmpty(scores)) throw new CustomException("上传数据为空");
+        return scores;
+    }
+
+    private Map<Long, List<XxtStudentScoreExcelDTO>> buildTeamGroupMap(List<XxtStudentScoreExcelDTO> scores, Long gameId) {
         Set<String> snos = scores.stream()
                 .map(XxtStudentScoreExcelDTO::getSno)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toSet());
-        // 查询学生信息
-        List<ClassStudent> students = classStudentService.lambdaQuery()
+        // 学号 -> 学生
+        Map<String, ClassStudent> snoToStudent = classStudentService.lambdaQuery()
                 .in(ClassStudent::getSno, snos)
-                .list();
-        // 获取学号-学生map
-        Map<String, ClassStudent> snoToStudentMap = students.stream()
-                .collect(Collectors.toMap(ClassStudent::getSno, s -> s));
-        // 查询当前 game 下的 team 列表
-        List<Team> teams = teamService.lambdaQuery()
-                .eq(Team::getGameId, gameId)
-                .list();
-        // teamId → team
-        Map<Long, Team> teamMap = teams.stream()
-                .collect(Collectors.toMap(Team::getId, t -> t));
-        // 查询 teamMember
-        List<Long> teamIds = new ArrayList<>(teamMap.keySet());
-        List<TeamMember> teamMembers = teamMemberService.lambdaQuery()
-                .in(TeamMember::getTeamId, teamIds)
-                .list();
-        // studentId → teamId 映射
-        Map<Long, Long> studentIdToTeamId = teamMembers.stream()
-                .collect(Collectors.toMap(TeamMember::getStudentId, TeamMember::getTeamId));
-        // 按 teamId 分组成员成绩
-        Map<Long, List<XxtStudentScoreExcelDTO>> teamGrouped = new HashMap<>();
-        for (XxtStudentScoreExcelDTO dto : scores) {
-            // 合法的数据
-            boolean valid = true;
-            ClassStudent student = snoToStudentMap.get(dto.getSno());
-            if (student == null) {
-                log.warn("学号 {} 未在班级中找到，跳过", dto.getSno());
-                valid = false;
-            }
-            // 获取 teamId
-            Long teamId = valid ? studentIdToTeamId.get(student.getId()) : null;
-            if (valid && teamId == null) {
-                log.warn("学生 {} 未分组，跳过", student.getName());
-                valid = false;
-            }
-            if (!valid) {
-                continue;
-            }
-            teamGrouped.computeIfAbsent(teamId, k -> new ArrayList<>()).add(dto);
-        }
-        // 获取 game 的积分计算限制
+                .list().stream().collect(Collectors.toMap(ClassStudent::getSno, s -> s));
 
+        // 学生ID -> 小组ID
+        Map<Long, Long> studentIdToTeamId = teamMemberService.lambdaQuery()
+                .eq(TeamMember::getGameId, gameId)
+                .list().stream()
+                .collect(Collectors.toMap(TeamMember::getStudentId, TeamMember::getTeamId));
+
+        Map<Long, List<XxtStudentScoreExcelDTO>> groupMap = new HashMap<>();
+        for (XxtStudentScoreExcelDTO dto : scores) {
+            ClassStudent student = snoToStudent.get(dto.getSno());
+            if (student == null) continue;
+            Long teamId = studentIdToTeamId.get(student.getId());
+            if (teamId == null) continue;
+            groupMap.computeIfAbsent(teamId, k -> new ArrayList<>()).add(dto);
+        }
+        return groupMap;
+    }
+
+    private Map<Long, Team> getTeamMapByGame(Long gameId) {
+        return teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .list().stream().collect(Collectors.toMap(Team::getId, t -> t));
+    }
+
+    /**
+     * 计算本轮每个小组得分，更新累计得分，并根据本轮得分及最晚提交时间排序返回排行榜
+     */
+    private List<TeamScoreRankResp> calculateAndUpdateTeamScoresAndGetRankResp(
+            Map<Long, List<XxtStudentScoreExcelDTO>> groupMap,
+            Game game,
+            Map<Long, Team> teamMap) {
         int maxCount = game.getTeamMemberCount();
-        // 更新每个小组的总分
-        for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : teamGrouped.entrySet()) {
+        List<TeamScoreRankResp> resultList = new ArrayList<>();
+        for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : groupMap.entrySet()) {
             Long teamId = entry.getKey();
             List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
-            List<Integer> scoreList = teamScores.stream()
+            // 计算本轮最高得分（取前 maxCount 个得分）
+            List<Integer> topScores = teamScores.stream()
                     .map(dto -> {
                         try {
                             return Integer.parseInt(dto.getScore());
                         } catch (NumberFormatException e) {
-                            log.warn("学号 {} 分数非法 [{}]，按 0 处理", dto.getSno(), dto.getScore());
                             return 0;
                         }
                     })
                     .sorted(Comparator.reverseOrder())
                     .limit(maxCount)
                     .toList();
-            int totalScore = scoreList.stream().mapToInt(Integer::intValue).sum();
+            int thisRoundScore = topScores.stream().mapToInt(Integer::intValue).sum();
+            // 取该组成绩的最晚提交时间
+            LocalDateTime latestTime = teamScores.stream()
+                    .map(XxtStudentScoreExcelDTO::getTime)
+                    .filter(Objects::nonNull)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(LocalDateTime.MIN);
             Team team = teamMap.get(teamId);
             if (team != null) {
-                team.setMemberScoreSum(totalScore);
-                boolean updated = teamService.lambdaUpdate()
+                // 累加本轮得分到历史总分
+                int oldScore = Optional.ofNullable(team.getMemberScoreSum()).orElse(0);
+                team.setMemberScoreSum(oldScore + thisRoundScore);
+                // 更新数据库
+                teamService.lambdaUpdate()
                         .eq(Team::getId, team.getId())
                         .eq(Team::getGameId, team.getGameId())
                         .update(team);
-                if (updated) {
-                    log.info("更新小组 {} 总积分为 {}", teamId, totalScore);
-                } else {
-                    log.error("更新小组 {} 积分失败", teamId);
-                }
+                // 构造返回对象
+                TeamScoreRankResp resp = new TeamScoreRankResp();
+                resp.setTeamId(teamId);
+                resp.setTeamName(team.getLeaderName());
+                resp.setThisRoundScore(thisRoundScore);
+                resp.setSubmitTime(latestTime);
+                resultList.add(resp);
             }
         }
-        //TODO 小组日志, 小组成员日志
-        game.setChessPhase(1);
-        game.setLastSavedAt(new Date());
-        updateById(game);
-        return true;
+        // 按本轮得分降序；得分相同时按提交时间升序排序
+        resultList.sort(Comparator.comparingInt(TeamScoreRankResp::getThisRoundScore).reversed()
+                .thenComparing(TeamScoreRankResp::getSubmitTime));
+        return resultList;
     }
+
     private List<TeamInfoDTO> parseExcel(MultipartFile file) {
         List<TeamInfoDTO> groupList = new ArrayList<>();
         AtomicLong teamSeq = new AtomicLong(1);

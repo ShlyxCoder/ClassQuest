@@ -10,21 +10,23 @@
             <result property="teamId" column="team_id" jdbcType="BIGINT"/>
             <result property="round" column="round" jdbcType="INTEGER"/>
             <result property="phase" column="phase" jdbcType="TINYINT"/>
-            <result property="tileIndex" column="tile_index" jdbcType="INTEGER"/>
-            <result property="isTriggered" column="is_triggered" jdbcType="TINYINT"/>
-            <result property="isActive" column="is_active" jdbcType="TINYINT"/>
-            <result property="triggerType" column="trigger_type" jdbcType="TINYINT"/>
-            <result property="valueChange" column="value_change" jdbcType="INTEGER"/>
-            <result property="triggerDesc" column="trigger_desc" jdbcType="VARCHAR"/>
+            <result property="allTiles" column="all_tiles" jdbcType="VARCHAR"/>
+            <result property="blindBoxTiles" column="blind_box_tiles" jdbcType="VARCHAR"/>
+            <result property="fortressTiles" column="fortress_tiles" jdbcType="VARCHAR"/>
+            <result property="goldCenterTiles" column="gold_center_tiles" jdbcType="VARCHAR"/>
+            <result property="opportunityTiles" column="opportunity_tiles" jdbcType="VARCHAR"/>
+            <result property="originalTileCount" column="original_tile_count" jdbcType="INTEGER"/>
+            <result property="settledTileCount" column="settled_tile_count" jdbcType="INTEGER"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
+        <result property="selected" column="selected" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,game_id,team_id,
-        round,phase,tile_index,
-        is_triggered,is_active,trigger_type,
-        value_change,trigger_desc,gmt_create,
-        gmt_update
+        round,phase,all_tiles,
+        blind_box_tiles,fortress_tiles,gold_center_tiles,
+        opportunity_tiles,original_tile_count,settled_tile_count,
+        gmt_create,gmt_update,selected
     </sql>
 </mapper>

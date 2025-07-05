@@ -25,6 +25,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
     @Override
     public void downloadTemplate(int memberCount, HttpServletResponse response) {
+        memberCount--;
         if (memberCount < 0) {
             memberCount = 3;
         }
@@ -46,7 +47,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("UTF-8");
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; filename=" + encodedFileName + "; filename*=UTF-8''" + encodedFileName);
+                    "attachment; filename=" + encodedFileName);
             EasyExcelFactory.write(response.getOutputStream())
                     .head(headers)
                     .sheet("分组名单")

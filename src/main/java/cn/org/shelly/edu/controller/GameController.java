@@ -2,15 +2,9 @@ package cn.org.shelly.edu.controller;
 
 import cn.org.shelly.edu.common.Result;
 import cn.org.shelly.edu.exception.CustomException;
-import cn.org.shelly.edu.model.pojo.BoardConfig;
-import cn.org.shelly.edu.model.pojo.Game;
-import cn.org.shelly.edu.model.pojo.Team;
-import cn.org.shelly.edu.model.pojo.TeamMember;
-import cn.org.shelly.edu.model.req.BoardInitReq;
-import cn.org.shelly.edu.model.req.GameInitReq;
-import cn.org.shelly.edu.model.req.ScoreUpdateReq;
-import cn.org.shelly.edu.model.resp.RankResp;
-import cn.org.shelly.edu.model.resp.TeamUploadResp;
+import cn.org.shelly.edu.model.pojo.*;
+import cn.org.shelly.edu.model.req.*;
+import cn.org.shelly.edu.model.resp.*;
 import cn.org.shelly.edu.service.BoardConfigService;
 import cn.org.shelly.edu.service.GameService;
 import cn.org.shelly.edu.service.TeamMemberService;
@@ -25,14 +19,13 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/game")
 @RequiredArgsConstructor
-@Tag(name= "游戏管理")
+@Tag(name= "棋盘赛管理")
 public class GameController {
     private final GameService gameService;
     private final BoardConfigService boardConfigService;
@@ -105,32 +98,13 @@ public class GameController {
         return Result.success(list);
     }
     @GetMapping("/rank/team/{id}")
-    @Operation(summary = "棋盘赛获取小组排名")
-    public Result<List<RankResp.TeamRankDTO>> getTeamRank(@PathVariable("id") @Schema(description = "游戏ID") Long id) {
+    @Operation(summary = "棋盘赛获取小组领地排名")
+    public Result<List<TeamRankResp>> getTeamRank(@PathVariable("id") @Schema(description = "游戏ID") Long id) {
         Game game = gameService.getById(id);
         if (game == null) {
             return Result.fail("游戏不存在");
         }
-        List<RankResp.TeamRankDTO> teamRanks = teamService.lambdaQuery()
-                .select(Team::getId, Team::getLeaderName, Team::getBoardScoreAdjusted,
-                        Team::getTotalMembers, Team::getSno, Team::getMemberScoreSum)
-                .eq(Team::getGameId, id)
-                .list()
-                .stream()
-                .map(team -> {
-                    RankResp.TeamRankDTO dto = new RankResp.TeamRankDTO();
-                    dto.setTeamId(team.getId());
-                    dto.setLeaderName(team.getLeaderName());
-                    int totalScore = team.getMemberScoreSum() + team.getBoardScoreAdjusted();
-                    dto.setTotalScore(totalScore);
-                    dto.setTotalMembers(team.getTotalMembers());
-                    dto.setLeaderSno(team.getSno());
-                    return dto;
-                })
-                .sorted(Comparator.comparingInt(RankResp.TeamRankDTO::getTotalScore).reversed()
-                        .thenComparing(RankResp.TeamRankDTO::getLeaderName))
-                .toList();
-        return Result.success(teamRanks);
+        return Result.success(gameService.getTeamRank(game));
     }
     @GetMapping("/rank/student/{id}")
     @Operation(summary = "棋盘赛获取学生排名")
@@ -163,16 +137,38 @@ public class GameController {
 
     @GetMapping("/upload/chess")
     @Operation(summary = "上传棋盘赛学习通成绩")
-    public Result<Boolean> uploadChessResult(@RequestParam MultipartFile file,
-                                             @RequestParam Long gameId) {
+    public Result<List<TeamScoreRankResp>> uploadChessResult(@RequestParam MultipartFile file,
+                                                             @RequestParam Long gameId) {
         return Result.success(gameService.upload(file, gameId));
     }
+    @PostMapping("/upload/assign")
+    @Operation(summary = "上传排名分配")
+    public Result<Void> uploadAssign(@RequestBody AssignReq req) {
+        gameService.uploadAssign(req);
+        return Result.success();
+    }
+    @GetMapping
+    @Operation(summary = "查看棋盘占有")
+    public Result<BoardResp> getTileOccupy(){
+        return Result.fail("服务未实现！");
+    }
+
 
     @PostMapping("/tile/occupy")
     @Operation(summary = "上传领地选择")
-    public Result<Void> uploadTileOccupy() {
-        return Result.fail("服务未实现");
+    public Result<Boolean> uploadTileOccupy(
+          @RequestBody TileOccupyReq req
+    ) {
+        return Result.success(gameService.occupy(req));
     }
+
+    @GetMapping("/unselected/{gameId}")
+    @Operation(summary = "查看当前游戏轮次未完成格子选择的小组")
+    public Result<List<UnselectedTeamResp>> getUnselectedTeams(@PathVariable("gameId") Long gameId) {
+        List<UnselectedTeamResp> list = gameService.getUnselectedTeamsByGame(gameId);
+        return Result.success(list);
+    }
+
     @PostMapping("/tile/change")
     @Operation(summary = "领地变更事件")
     public Result<Void> uploadTileChange() {

@@ -71,10 +71,10 @@ public class Game implements Serializable {
     private Integer chessRound;
 
     /**
-     * 当前棋盘阶段，0-上传成绩阶段 1-走棋，2-结算
+     * 当前棋盘阶段，0-上传成绩阶段 1-上传领地阶段 2-走棋，3-结算
      */
     @TableField(value = "chess_phase")
-    @Schema(description = "当前棋盘阶段：0-上传成绩阶段 1-走棋，2-结算")
+    @Schema(description = "当前棋盘阶段：0-上传成绩阶段 1-上传领地阶段 2-走棋，3-结算")
     private Integer chessPhase;
 
     /**

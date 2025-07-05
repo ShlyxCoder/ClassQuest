@@ -9,10 +9,13 @@ import java.time.LocalDateTime;
 public class TeamScoreRankResp {
     @Schema(description = "小组ID")
     private Long teamId;
-    @Schema(description = "小组名称")
+
+    @Schema(description = "组长姓名")
     private String teamName;
-    @Schema(description = "小组总得分")
-    private Integer totalScore;
-    @Schema(description = "小组最晚提交")
-    private LocalDateTime lastSubmitTime;
+
+    @Schema(description = "本轮得分")
+    private Integer thisRoundScore;
+
+    @Schema(description = "小组内最晚提交时间")
+    private LocalDateTime submitTime;
 }
