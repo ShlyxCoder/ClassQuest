@@ -130,7 +130,7 @@ public class ClassController {
             long studentCount = classStudentService.lambdaQuery()
                     .eq(ClassStudent::getCid, cid)
                     .count();
-            // 更新班级中的学生数（假设你有 Classes 表中的 student_count 字段）
+            // 更新班级中的学生数
             classService.lambdaUpdate()
                     .eq(Classes::getId, cid)
                     .set(Classes::getCurrentStudents, studentCount)

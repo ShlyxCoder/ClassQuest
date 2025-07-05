@@ -60,7 +60,7 @@ public class Game implements Serializable {
      * 当前赛段：1-棋盘赛，2-提案赛，0-未初始化阶段
      */
     @TableField(value = "stage")
-    @Schema(description = "当前赛段：1-棋盘赛，2-提案赛，0-未初始化阶段")
+    @Schema(description = "当前赛段：0-未初始化阶段 1-棋盘赛，2-提案赛，")
     private Integer stage;
 
     /**
@@ -88,7 +88,7 @@ public class Game implements Serializable {
      * 当前提案阶段内的轮次
      */
     @TableField(value = "proposal_round")
-    @Schema(description = "前提案阶段内的轮次")
+    @Schema(description = "当前提案阶段内的轮次")
     private Integer proposalRound;
 
     /**

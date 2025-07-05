@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,7 +30,7 @@ public class GameController {
     private final BoardConfigService boardConfigService;
     private final TeamService teamService;
     private final TeamMemberService teamMemberService;
-    @GetMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/upload")
     @Operation(summary = "上传游戏分组导入")
     public Result<TeamUploadResp> init(
             @RequestPart("file") MultipartFile file,
@@ -86,7 +85,7 @@ public class GameController {
                 .collect(Collectors.joining(","));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/status/{id}")
     @Operation(summary = "获取游戏状态")
     public Result<Game> getGameStatus(@PathVariable("id") Long id) {
         return Result.success(gameService.getById(id));
@@ -135,9 +134,9 @@ public class GameController {
     }
 
 
-    @GetMapping("/upload/chess")
+    @PostMapping("/upload/chess")
     @Operation(summary = "上传棋盘赛学习通成绩")
-    public Result<List<TeamScoreRankResp>> uploadChessResult(@RequestParam MultipartFile file,
+    public Result<List<TeamScoreRankResp>> uploadChessResult(@RequestPart("file") MultipartFile file,
                                                              @RequestParam Long gameId) {
         return Result.success(gameService.upload(file, gameId));
     }

@@ -93,7 +93,7 @@ public class TeamController {
                 .orElseThrow(() -> new CustomException("游戏不存在"));
         // 查询班级所有学生
         List<ClassStudent> allClassStudents = classStudentService.lambdaQuery()
-                .select(ClassStudent::getId, ClassStudent::getName)
+                .select(ClassStudent::getId, ClassStudent::getName, ClassStudent::getSno)
                 .eq(ClassStudent::getCid, cid)
                 .list();
         // 已加入小组的 studentId

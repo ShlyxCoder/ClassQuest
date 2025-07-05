@@ -1,15 +1,12 @@
 package cn.org.shelly.edu.service.impl;
 
-import cn.org.shelly.edu.controller.GameController;
 import cn.org.shelly.edu.enums.CodeEnum;
 import cn.org.shelly.edu.exception.CustomException;
 import cn.org.shelly.edu.exception.ExcelReadStopException;
 import cn.org.shelly.edu.listener.XxtStudentScoreListener;
 import cn.org.shelly.edu.mapper.GameMapper;
-import cn.org.shelly.edu.model.dto.MemberDTO;
-import cn.org.shelly.edu.model.dto.TeamInfoDTO;
-import cn.org.shelly.edu.model.dto.TeamUploadDTO;
-import cn.org.shelly.edu.model.dto.XxtStudentScoreExcelDTO;
+import cn.org.shelly.edu.mapper.TeamMemberMapper;
+import cn.org.shelly.edu.model.dto.*;
 import cn.org.shelly.edu.model.pojo.*;
 import cn.org.shelly.edu.model.req.AssignReq;
 import cn.org.shelly.edu.model.req.GameInitReq;
@@ -48,11 +45,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
     private final ClassService classService;
     private final TeamTileActionService teamTileActionService;
     private final BoardConfigService boardConfigService;
+    private final TeamMemberMapper teamMemberMapper;
 
     @Override
     public TeamUploadResp init(GameInitReq req) {
         Game game = createGame(req);
         List<TeamInfoDTO> groupList = parseExcel(req.getFile());
+        log.info(groupList.toString());
         //注意：以学号做key，确保唯一性
         Map<String, ClassStudent> studentMap = getClassStudentMap(req.getCid());
         List<ClassStudent> newStudents = collectMissingStudents(groupList, studentMap, req.getCid());
@@ -78,7 +77,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         // 2. 读取并验证上传文件
         List<XxtStudentScoreExcelDTO> scores = validateAndParseFile(file);
         // 3. 根据上传成绩构建：teamId -> 成绩列表 映射
-        Map<Long, List<XxtStudentScoreExcelDTO>> groupMap = buildTeamGroupMap(scores, gameId);
+        Map<Long, List<XxtStudentScoreExcelDTO>> groupMap = buildTeamGroupMap(scores, gameId, game.getCid());
         // 4. 获取该游戏所有小组映射：teamId -> Team
         Map<Long, Team> teamMap = getTeamMapByGame(gameId);
         // 5. 计算本轮小组得分，更新累计得分，并生成排行榜响应
@@ -312,7 +311,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         return scores;
     }
 
-    private Map<Long, List<XxtStudentScoreExcelDTO>> buildTeamGroupMap(List<XxtStudentScoreExcelDTO> scores, Long gameId) {
+    private Map<Long, List<XxtStudentScoreExcelDTO>> buildTeamGroupMap(List<XxtStudentScoreExcelDTO> scores, Long gameId, Long cid) {
         Set<String> snos = scores.stream()
                 .map(XxtStudentScoreExcelDTO::getSno)
                 .filter(StringUtils::hasText)
@@ -320,6 +319,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         // 学号 -> 学生
         Map<String, ClassStudent> snoToStudent = classStudentService.lambdaQuery()
                 .in(ClassStudent::getSno, snos)
+                .eq(ClassStudent::getCid, cid)
                 .list().stream().collect(Collectors.toMap(ClassStudent::getSno, s -> s));
 
         // 学生ID -> 小组ID
@@ -352,12 +352,16 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             Map<Long, List<XxtStudentScoreExcelDTO>> groupMap,
             Game game,
             Map<Long, Team> teamMap) {
+
         int maxCount = game.getTeamMemberCount();
         List<TeamScoreRankResp> resultList = new ArrayList<>();
+        List<ScoreUpdateDTO> updateList = new ArrayList<>();
+
         for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : groupMap.entrySet()) {
             Long teamId = entry.getKey();
             List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
-            // 计算本轮最高得分（取前 maxCount 个得分）
+
+            // 计算 topN 分数总和
             List<Integer> topScores = teamScores.stream()
                     .map(dto -> {
                         try {
@@ -369,24 +373,29 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     .sorted(Comparator.reverseOrder())
                     .limit(maxCount)
                     .toList();
+
             int thisRoundScore = topScores.stream().mapToInt(Integer::intValue).sum();
-            // 取该组成绩的最晚提交时间
+
+            // 获取最新提交时间
             LocalDateTime latestTime = teamScores.stream()
                     .map(XxtStudentScoreExcelDTO::getTime)
                     .filter(Objects::nonNull)
                     .max(LocalDateTime::compareTo)
                     .orElse(LocalDateTime.MIN);
+
+            // 更新 Team 总分
             Team team = teamMap.get(teamId);
             if (team != null) {
-                // 累加本轮得分到历史总分
                 int oldScore = Optional.ofNullable(team.getMemberScoreSum()).orElse(0);
                 team.setMemberScoreSum(oldScore + thisRoundScore);
+
                 // 更新数据库
                 teamService.lambdaUpdate()
                         .eq(Team::getId, team.getId())
                         .eq(Team::getGameId, team.getGameId())
                         .update(team);
-                // 构造返回对象
+
+                // 构造排名返回对象
                 TeamScoreRankResp resp = new TeamScoreRankResp();
                 resp.setTeamId(teamId);
                 resp.setTeamName(team.getLeaderName());
@@ -394,12 +403,30 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 resp.setSubmitTime(latestTime);
                 resultList.add(resp);
             }
+            // 收集成员得分，用于批量更新
+            for (XxtStudentScoreExcelDTO dto : teamScores) {
+                if (org.apache.commons.lang3.StringUtils.isNotBlank(dto.getSno())) {
+                    ScoreUpdateDTO param = new ScoreUpdateDTO();
+                    param.setSno(dto.getSno());
+                    try {
+                        param.setAddScore(Integer.parseInt(dto.getScore()));
+                    } catch (NumberFormatException e) {
+                        param.setAddScore(0);
+                    }
+                    updateList.add(param);
+                }
+            }
         }
-        // 按本轮得分降序；得分相同时按提交时间升序排序
+        // 排序
         resultList.sort(Comparator.comparingInt(TeamScoreRankResp::getThisRoundScore).reversed()
                 .thenComparing(TeamScoreRankResp::getSubmitTime));
+        // 批量更新成员分数
+        if (!updateList.isEmpty()) {
+            teamMemberMapper.batchAddScore(updateList, game.getId());
+        }
         return resultList;
     }
+
 
     private List<TeamInfoDTO> parseExcel(MultipartFile file) {
         List<TeamInfoDTO> groupList = new ArrayList<>();
@@ -411,7 +438,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 @Override
                 public void invoke(Map<Integer, String> row, AnalysisContext context) {
                     rowIndex++;
-                    if (rowIndex == 1) return; // 跳过表头
+                    if (rowIndex == 0) return; // 跳过表头
                     try {
                         handleRow(row, rowIndex, groupList, teamSeq, existingTeamNos);
                     } catch (Exception e) {

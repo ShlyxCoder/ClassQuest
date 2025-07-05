@@ -1,6 +1,10 @@
 package cn.org.shelly.edu.mapper;
+import cn.org.shelly.edu.model.dto.ScoreUpdateDTO;
 import cn.org.shelly.edu.model.pojo.TeamMember;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
 * @author Shelly6
@@ -9,6 +13,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @Entity cn/org/shelly/edu/model/pojo.domain.TeamMember
 */
 public interface TeamMemberMapper extends BaseMapper<TeamMember> {
+
+    int batchAddScore(@Param("list") List<ScoreUpdateDTO> list, @Param("gameId") Long gameId);
 
 }
 
