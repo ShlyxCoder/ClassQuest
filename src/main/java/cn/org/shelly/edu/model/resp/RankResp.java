@@ -20,10 +20,12 @@ public class RankResp {
     public static class TeamRankDTO {
         @Schema(description = "小组编号")
         private Long teamId;
-
         @Schema(description = "组长姓名")
         private String leaderName;
-
+        @Schema(description = "小组人数")
+        private Integer totalMembers;
+        @Schema(description = "队长学号")
+        private String leaderSno;
         @Schema(description = "小组总得分")
         private Integer totalScore;
     }
@@ -39,6 +41,9 @@ public class RankResp {
 
         @Schema(description = "个人得分")
         private Integer individualScore;
+
+        @Schema(description = "组员学号")
+        private String memberSno;
 
         @Schema(description = "所属小组ID")
         private Long teamId;

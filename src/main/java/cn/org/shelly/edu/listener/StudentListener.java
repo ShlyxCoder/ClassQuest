@@ -25,6 +25,7 @@ public class StudentListener implements ReadListener<StudentExcelDTO> {
     @Override
     public void invoke(StudentExcelDTO studentExcelDTO, AnalysisContext analysisContext) {
         try {
+            log.info("解析到一条数据:{}", studentExcelDTO);
             boolean result = Boolean.TRUE.equals(classStudentService.createStudent(studentExcelDTO, id));
             if (result) {
                 successCount.incrementAndGet();

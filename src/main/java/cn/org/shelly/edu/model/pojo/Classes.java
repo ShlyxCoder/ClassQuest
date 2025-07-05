@@ -15,7 +15,7 @@ import lombok.experimental.Accessors;
  * 班级表
  * @TableName class
  */
-@TableName(value ="class")
+@TableName(value ="classes")
 @Data
 @Accessors(chain = true)
 public class Classes implements Serializable {

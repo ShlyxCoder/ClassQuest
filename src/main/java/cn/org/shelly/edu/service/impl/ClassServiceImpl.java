@@ -32,12 +32,13 @@ public class ClassServiceImpl extends ServiceImpl<ClassMapper, Classes>
     private final ClassStudentService classStudentService;
 
     @Override
-    public UploadResultResp upload(FileUploadReq req) {
+    public UploadResultResp upload(MultipartFile file, Long id) {
         try {
             // 创建监听器实例
-            StudentListener listener = new StudentListener(classStudentService, req.getId());
+            StudentListener listener = new StudentListener(classStudentService, id);
             // 执行解析
-            EasyExcelFactory.read(req.getFile().getInputStream(), StudentExcelDTO.class, listener)
+            EasyExcelFactory.read(file.getInputStream(), StudentExcelDTO.class, listener)
+                    .head(StudentExcelDTO.class)
                     .sheet()
                     .doRead();
             // 返回统计结果

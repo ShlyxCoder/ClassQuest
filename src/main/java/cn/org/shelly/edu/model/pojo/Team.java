@@ -68,6 +68,9 @@ public class Team implements Serializable {
     @TableField(value = "alive")
     private Integer alive;
 
+    @TableField(value = "sno")
+    private String sno;
+
     @TableField(exist = false)
     @Serial
     private static final long serialVersionUID = 1L;

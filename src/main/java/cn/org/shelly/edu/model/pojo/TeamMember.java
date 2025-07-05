@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -57,6 +59,10 @@ public class TeamMember implements Serializable {
     @TableField(value = "gmt_create")
     private Date gmtCreate;
 
+    @TableField(value = "sno")
+    private String sno;
+
     @TableField(exist = false)
+    @Serial
     private static final long serialVersionUID = 1L;
 }

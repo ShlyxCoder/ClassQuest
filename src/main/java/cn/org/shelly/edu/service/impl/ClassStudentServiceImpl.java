@@ -22,7 +22,7 @@ public class ClassStudentServiceImpl extends ServiceImpl<ClassStudentMapper, Cla
     @Override
     public Boolean createStudent(StudentExcelDTO studentExcelDTO, Long id) {
         ClassStudent classStudent = new ClassStudent();
-        if(StringUtils.isNotBlank(studentExcelDTO.getSno()) || StringUtils.isNotBlank(studentExcelDTO.getName())){
+        if(StringUtils.isBlank(studentExcelDTO.getSno()) || StringUtils.isBlank(studentExcelDTO.getName())){
             log.info("学号或姓名不能为空");
             return false;
         }

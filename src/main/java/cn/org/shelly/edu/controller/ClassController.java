@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 
@@ -34,7 +35,7 @@ import java.util.ArrayList;
 public class ClassController {
     private final ClassService classService;
     private final ClassStudentService classStudentService;
-    @PostMapping
+    @GetMapping
     @Operation(summary = "添加班级")
     public Result<Void> addClass(@RequestParam @Schema(description = "班级编码（习近平思想2003）") String code){
         Long uid = StpUtil.getLoginIdAsLong();
@@ -55,8 +56,8 @@ public class ClassController {
         classService.removeById(id);
         return Result.success();
     }
-    @GetMapping("/{id}")
-    @Operation(summary = "获取课程信息")
+    @GetMapping("/{id:\\d+}")
+    @Operation(summary = "获取班级信息")
     public Result<Classes> get(@PathVariable("id") Long id) {
         return Result.success(classService.getById(id));
     }
@@ -98,9 +99,13 @@ public class ClassController {
     }
     @PostMapping("/upload")
     @Operation(summary = "上传学生excel")
-    public Result<UploadResultResp> importExcel(@RequestBody FileUploadReq req) {
-        return Result.success(classService.upload(req));
+    public Result<UploadResultResp> importExcel(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("id") Long id
+    ) {
+        return Result.success(classService.upload(file, id));
     }
+
     @PostMapping("/upload/single")
     @Operation(summary = "上传单个学生")
     public Result<Boolean> addStudent(@Validated @RequestBody UploadSingleStudentReq req) {

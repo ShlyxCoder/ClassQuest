@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 */
 public interface ClassService extends IService<Classes> {
 
-    UploadResultResp upload(FileUploadReq req);
+    UploadResultResp upload(MultipartFile file, Long id);
 
     Boolean uploadSingle(UploadSingleStudentReq req);
 }
