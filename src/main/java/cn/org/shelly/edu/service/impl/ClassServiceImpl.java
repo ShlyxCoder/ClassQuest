@@ -42,6 +42,12 @@ public class ClassServiceImpl extends ServiceImpl<ClassMapper, Classes>
                     .sheet()
                     .doRead();
             // 返回统计结果
+            Long count = classStudentService
+                    .lambdaQuery()
+                    .eq(ClassStudent::getCid, id)
+                    .count();
+            Classes classes = getById(id);
+            classes.setCurrentStudents(Math.toIntExact(count));
             return new UploadResultResp(listener.getSuccessCount(), listener.getFailCount());
         } catch (IOException e) {
             throw new CustomException("文件读取失败");
@@ -50,10 +56,17 @@ public class ClassServiceImpl extends ServiceImpl<ClassMapper, Classes>
 
     @Override
     public Boolean uploadSingle(UploadSingleStudentReq req) {
-        return classStudentService.save(new ClassStudent()
+        boolean result = classStudentService.save(new ClassStudent()
                 .setName(req.getName())
                 .setSno(req.getSno())
                 .setCid(req.getCid()));
+        if(!result){
+            throw new CustomException(CodeEnum.FAIL);
+        }
+        Classes classes = getById(req.getCid());
+        classes.setCurrentStudents(classes.getCurrentStudents() + 1);
+        updateById(classes);
+        return true;
     }
 }
 

@@ -71,14 +71,12 @@ public class TeamController {
             dto.setLeaderName(team.getLeaderName());
             dto.setLeaderId(team.getLeaderId());
             dto.setLeaderSno(team.getSno());
-            dto.setTotalScore(team.getTotalScore());
             dto.setTotalMembers(team.getTotalMembers());
             List<TeamDetailResp.MemberDTO> memberDTOs = memberMap.getOrDefault(team.getId(), Collections.emptyList())
                     .stream().map(m -> {
                         TeamDetailResp.MemberDTO md = new TeamDetailResp.MemberDTO();
                         md.setStudentId(m.getStudentId());
                         md.setStudentName(m.getStudentName());
-                        md.setIndividualScore(m.getIndividualScore());
                         md.setStudentSno(m.getSno());
                         md.setIsLeader(m.getIsLeader() != null && m.getIsLeader() == 1);
                         return md;
@@ -111,11 +109,17 @@ public class TeamController {
     }
 
 
-    @PutMapping("/game/{teamId}")
+    @PutMapping("/game/{teamId}/{gameId}")
     @Operation(summary = "修改小组成员信息，并返回改变后分组情况")
-    public Result<TeamUpdateResp> updateTeam(@PathVariable Long teamId, @RequestBody @Valid TeamUpdateReq req) {
+    public Result<TeamUpdateResp> updateTeam(@PathVariable Long teamId,
+                                             @PathVariable Long gameId,
+                                             @RequestBody @Valid TeamUpdateReq req) {
         // 1. 查询旧小组
-        Team team = teamService.getById(teamId);
+        Team team = teamService.lambdaQuery()
+                .eq(Team::getId, teamId)
+                .eq(Team::getGameId, gameId)
+                .oneOpt()
+                .orElse(null);
         if (team == null) {
             throw new CustomException("小组不存在");
         }
@@ -141,12 +145,15 @@ public class TeamController {
             return tm;
         }).toList();
         teamMemberService.saveBatch(newMembers);
-        // 5. 更新 team 主表（组长 + 成员数量）
+        // 5. 更新 team 主表（
         team.setLeaderId(req.getLeaderId());
         team.setLeaderName(idToName.get(req.getLeaderId()).getName());
         team.setTotalMembers(req.getMemberIds().size());
         team.setSno(idToName.get(req.getLeaderId()).getSno());
-        teamService.updateById(team);
+        teamService.lambdaUpdate()
+                .eq(Team::getId, team.getId())
+                .eq(Team::getGameId, team.getGameId())
+                .update(team);
         // 6. 查询当前班级的自由人
         Long cid = gameService.getById(team.getGameId()).getCid();
         List<ClassStudent> allStudents = classStudentService.lambdaQuery()
@@ -169,14 +176,12 @@ public class TeamController {
         resp.setLeaderName(team.getLeaderName());
         resp.setTotalMembers(team.getTotalMembers());
         resp.setLeaderSno(team.getSno());
-        resp.setTotalScore(team.getTotalScore());
         resp.setLeaderSno(team.getSno());
         List<TeamDetailResp.MemberDTO> members = newMembers.stream().map(m -> {
             TeamDetailResp.MemberDTO dto = new TeamDetailResp.MemberDTO();
             dto.setStudentId(m.getStudentId());
             dto.setStudentName(m.getStudentName());
             dto.setStudentSno(m.getSno());
-            dto.setIndividualScore(m.getIndividualScore());
             dto.setIsLeader(m.getIsLeader() != null && m.getIsLeader() == 1);
             return dto;
         }).toList();

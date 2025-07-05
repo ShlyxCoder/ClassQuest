@@ -13,7 +13,6 @@ public class TeamDetailResp {
     private String leaderName;
     @Schema(description = "组长学生id")
     private Long leaderId;
-    private Integer totalScore;
     @Schema(description = "小组人数")
     private Integer totalMembers;
     @Schema(description = "小组成员")
@@ -27,8 +26,6 @@ public class TeamDetailResp {
         private Long studentId;
         @Schema(description = "学生名称")
         private String studentName;
-        @Schema(description = "学生个人得分")
-        private Integer individualScore;
         private Boolean isLeader;
         @Schema(description = "学生学号")
         private String studentSno;

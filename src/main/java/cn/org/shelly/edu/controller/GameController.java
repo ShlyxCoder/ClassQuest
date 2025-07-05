@@ -8,6 +8,7 @@ import cn.org.shelly.edu.model.pojo.Team;
 import cn.org.shelly.edu.model.pojo.TeamMember;
 import cn.org.shelly.edu.model.req.BoardInitReq;
 import cn.org.shelly.edu.model.req.GameInitReq;
+import cn.org.shelly.edu.model.req.ScoreUpdateReq;
 import cn.org.shelly.edu.model.resp.RankResp;
 import cn.org.shelly.edu.model.resp.TeamUploadResp;
 import cn.org.shelly.edu.service.BoardConfigService;
@@ -24,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -102,38 +104,44 @@ public class GameController {
         var list = gameService.list(new QueryWrapper<Game>().eq("cid", cid).orderByDesc("gmt_update"));
         return Result.success(list);
     }
-    @GetMapping("/rank/{id}")
-    @Operation(summary = "获取游戏排名")
-    public Result<RankResp> getGameRank(@PathVariable("id") @Schema(description = "游戏ID") Long id) {
+    @GetMapping("/rank/team/{id}")
+    @Operation(summary = "棋盘赛获取小组排名")
+    public Result<List<RankResp.TeamRankDTO>> getTeamRank(@PathVariable("id") @Schema(description = "游戏ID") Long id) {
         Game game = gameService.getById(id);
         if (game == null) {
             return Result.fail("游戏不存在");
         }
-        var rankResp = new RankResp();
         List<RankResp.TeamRankDTO> teamRanks = teamService.lambdaQuery()
-                .select(Team::getId, Team::getLeaderName, Team::getTotalScore, Team::getTotalMembers, Team::getSno)
+                .select(Team::getId, Team::getLeaderName, Team::getBoardScoreAdjusted,
+                        Team::getTotalMembers, Team::getSno, Team::getMemberScoreSum)
                 .eq(Team::getGameId, id)
-                .orderByDesc(Team::getTotalScore)
-                .orderByAsc(Team::getLeaderName)
                 .list()
                 .stream()
                 .map(team -> {
                     RankResp.TeamRankDTO dto = new RankResp.TeamRankDTO();
                     dto.setTeamId(team.getId());
                     dto.setLeaderName(team.getLeaderName());
-                    dto.setTotalScore(team.getTotalScore());
+                    int totalScore = team.getMemberScoreSum() + team.getBoardScoreAdjusted();
+                    dto.setTotalScore(totalScore);
                     dto.setTotalMembers(team.getTotalMembers());
                     dto.setLeaderSno(team.getSno());
                     return dto;
-                }).toList();
-        // 获取当前游戏下所有团队ID
-        List<Long> teamIds = teamRanks.stream()
-                .map(RankResp.TeamRankDTO::getTeamId)
+                })
+                .sorted(Comparator.comparingInt(RankResp.TeamRankDTO::getTotalScore).reversed()
+                        .thenComparing(RankResp.TeamRankDTO::getLeaderName))
                 .toList();
-
+        return Result.success(teamRanks);
+    }
+    @GetMapping("/rank/student/{id}")
+    @Operation(summary = "棋盘赛获取学生排名")
+    public Result<List<RankResp.StudentRankDTO>> getStudentRank(@PathVariable("id") @Schema(description = "游戏ID") Long id) {
+        Game game = gameService.getById(id);
+        if (game == null) {
+            return Result.fail("游戏不存在");
+        }
         List<RankResp.StudentRankDTO> studentRanks = teamMemberService.lambdaQuery()
-                .in(TeamMember::getTeamId, teamIds)
-                .select(TeamMember::getStudentId, TeamMember::getStudentName,  TeamMember::getSno,
+                .eq(TeamMember::getGameId, id)
+                .select(TeamMember::getStudentId, TeamMember::getStudentName, TeamMember::getSno,
                         TeamMember::getIndividualScore, TeamMember::getTeamId)
                 .orderByDesc(TeamMember::getIndividualScore)
                 .orderByAsc(TeamMember::getStudentName)
@@ -147,11 +155,12 @@ public class GameController {
                     dto.setIndividualScore(member.getIndividualScore());
                     dto.setTeamId(member.getTeamId());
                     return dto;
-                }).toList();
-        rankResp.setTeamRanks(teamRanks);
-        rankResp.setStudentRanks(studentRanks);
-        return Result.success(rankResp);
+                })
+                .toList();
+        return Result.success(studentRanks);
     }
+
+
     @GetMapping("/upload/chess")
     @Operation(summary = "上传棋盘赛学习通成绩")
     public Result<Boolean> uploadChessResult(@RequestParam MultipartFile file,
@@ -169,28 +178,46 @@ public class GameController {
     public Result<Void> uploadTileChange() {
         return Result.fail("服务未实现");
     }
-    @PutMapping("/score/{type}/{id}/{num}")
-    @Operation(summary = "积分变更")
-    public Result<Void> updateScore(
-            @PathVariable("type") @Schema(description = "操作类型（1：小组 2：个人）") String type,
-            @PathVariable("id") @Schema(description = "操作ID") Long id,
-            @PathVariable("num") @Schema(description = "积分数") Integer num
-    ) {
-        if(type.equals("1")){
-            Team team = teamService.getById(id);
-            if(team == null){
+    @PostMapping("/score/update")
+    @Operation(summary = "老师操作积分变更")
+    public Result<Void> updateScore(@RequestBody ScoreUpdateReq req) {
+        Integer type = req.getType();
+        Integer stage = req.getStage();
+        Long id = req.getId();
+        Long gameId = req.getGameId();
+        Integer num = req.getNum();
+        String comment = req.getComment();
+        if (type == 1) { // 小组
+            Team team = teamService.lambdaQuery()
+                    .eq(Team::getId, id)
+                    .eq(Team::getGameId, gameId)
+                    .one();
+            if (team == null) {
                 throw new CustomException("小组不存在");
             }
-            //TODO 积分变更
-            team.setTotalScore(team.getTotalScore() + num);
-            teamService.updateById(team);
-        }else{
+            if (stage == 1) {
+                team.setBoardScoreAdjusted(team.getBoardScoreAdjusted() + num);
+            } else if (stage == 2) {
+                team.setProposalScoreAdjusted(team.getProposalScoreAdjusted() + num);
+            }
+            teamService.lambdaUpdate()
+                    .eq(Team::getId, team.getId())
+                    .eq(Team::getGameId, gameId)
+                    .update(team);
+            // TODO: 小组积分变更通知（建议日志记录 comment）
+        } else { // 个人
             TeamMember member = teamMemberService.getById(id);
+            if (member == null) {
+                throw new CustomException("成员不存在");
+            }
             member.setIndividualScore(member.getIndividualScore() + num);
-            //TODO 积分变更
             teamMemberService.updateById(member);
+
             Long teamId = member.getTeamId();
-            Team team = teamService.getById(teamId);
+            Team team = teamService.lambdaQuery()
+                    .eq(Team::getId, teamId)
+                    .eq(Team::getGameId, gameId)
+                    .one();
             if (team == null) {
                 throw new CustomException("成员所属小组不存在");
             }
@@ -199,7 +226,6 @@ public class GameController {
                 throw new CustomException("游戏不存在");
             }
             int maxCount = game.getTeamMemberCount();
-            // 查询该小组所有成员积分，降序排序，取前 maxCount 个积分求和
             List<TeamMember> members = teamMemberService.lambdaQuery()
                     .eq(TeamMember::getTeamId, teamId)
                     .orderByDesc(TeamMember::getIndividualScore)
@@ -208,12 +234,16 @@ public class GameController {
             int totalScore = members.stream()
                     .mapToInt(TeamMember::getIndividualScore)
                     .sum();
-            // 更新小组总积分
-            team.setTotalScore(totalScore);
-            teamService.updateById(team);
+            team.setMemberScoreSum(totalScore);
+            teamService.lambdaUpdate()
+                    .eq(Team::getId, team.getId())
+                    .eq(Team::getGameId, team.getGameId())
+                    .update(team);
+            // TODO: 个人积分变更通知（建议日志记录 comment）
         }
         return Result.success();
     }
+
 
 
 }

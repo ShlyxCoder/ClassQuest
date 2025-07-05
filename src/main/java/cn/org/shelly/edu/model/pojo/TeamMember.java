@@ -62,6 +62,9 @@ public class TeamMember implements Serializable {
     @TableField(value = "sno")
     private String sno;
 
+    @TableField(value = "game_id")
+    private Long gameId;
+
     @TableField(exist = false)
     @Serial
     private static final long serialVersionUID = 1L;

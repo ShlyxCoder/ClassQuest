@@ -13,7 +13,7 @@ import java.util.List;
 public class TeamInfoDTO {
     @Schema(description = "小组编号")
     private Long teamNo;
-    @Schema(description = "小组名称")
+    @Schema(description = "小组组长")
     private MemberDTO leader;           // 组长，名字+学号
     @Schema(description = "小组成员")
     private List<MemberDTO> members;    // 成员列表，每个成员名字+学号

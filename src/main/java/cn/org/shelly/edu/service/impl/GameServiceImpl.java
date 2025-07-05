@@ -42,8 +42,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
 
     @Override
     public TeamUploadResp init(GameInitReq req) {
-        List<TeamInfoDTO> groupList = parseExcel(req.getFile());
         Game game = createGame(req);
+        List<TeamInfoDTO> groupList = parseExcel(req.getFile());
         //注意：以学号做key，确保唯一性
         Map<String, ClassStudent> studentMap = getClassStudentMap(req.getCid());
         List<ClassStudent> newStudents = collectMissingStudents(groupList, studentMap, req.getCid());
@@ -58,116 +58,125 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 .eq(Classes::getId, req.getCid())
                 .setSql("current_students = current_students + " + studentMap.size())
                 .update();
-        return buildUploadResp(req, newStudents.size(), dto);
+        return buildUploadResp(req, newStudents.size(), dto, game.getId());
     }
 
     @Override
     public Boolean upload(MultipartFile file, Long gameId) {
-//        XxtStudentScoreListener listener = new XxtStudentScoreListener();
-//        try {
-//            EasyExcelFactory.read(file.getInputStream(), listener)
-//                    .head(XxtStudentScoreExcelDTO.class)
-//                    .sheet()
-//                    .headRowNumber(6)
-//                    .doRead();
-//        } catch (ExcelReadStopException e) {
-//            log.info("导入数据结束，读取中断：{}", e.getMessage());
-//        } catch (IOException e) {
-//            throw new CustomException(CodeEnum.SYSTEM_ERROR);
-//        }
-//        List<XxtStudentScoreExcelDTO> scores = listener.getData();
-//        if (CollectionUtils.isEmpty(scores)) {
-//            log.warn("上传数据为空");
-//            throw new CustomException("上传数据为空");
-//        }
-//        // 获取上传的学生学号
-//        Set<String> snos = scores.stream()
-//                .map(XxtStudentScoreExcelDTO::getSno)
-//                .filter(StringUtils::hasText)
-//                .collect(Collectors.toSet());
-//        // 根据学生学号查询学生
-//        List<ClassStudent> students = classStudentService.lambdaQuery()
-//                .in(ClassStudent::getSno, snos)
-//                .list();
-//        Map<String, ClassStudent> snoToStudentMap = students.stream()
-//                .collect(Collectors.toMap(ClassStudent::getSno, s -> s));
-//        // 1. 查出当前 game 下的所有 team
-//        List<Team> teams = teamService.lambdaQuery()
-//                .eq(Team::getGameId, gameId)
-//                .list();
-//        Map<Long, Team> teamMap = teams.stream()
-//                .collect(Collectors.toMap(Team::getId, t -> t));
-//        List<Long> teamIds = new ArrayList<>(teamMap.keySet());
-//        // 2. 查询 teamMember（限定在这些 teamId 范围内）
-//        List<TeamMember> teamMembers = teamMemberService.lambdaQuery()
-//                .in(TeamMember::getTeamId, teamIds)
-//                .list();
-//
-//// 3. 查出学生
-//        List<String> snos = scores.stream().map(XxtStudentScoreExcelDTO::getSno).toList();
-//        List<ClassStudent> students = classStudentService.lambdaQuery()
-//                .in(ClassStudent::getSno, snos)
-//                .list();
-//
-//        Map<String, ClassStudent> snoToStudentMap = students.stream()
-//                .collect(Collectors.toMap(ClassStudent::getSno, s -> s));
-//        Map<Long, ClassStudent> idToStudentMap = students.stream()
-//                .collect(Collectors.toMap(ClassStudent::getId, s -> s));
-//
-//// 4. 构建 studentId → teamId 映射
-//        Map<Long, Long> studentIdToTeamId = teamMembers.stream()
-//                .collect(Collectors.toMap(TeamMember::getStudentId, TeamMember::getTeamId));
-//
-//// 5. 按 teamId 分组成员成绩
-//        Map<Long, List<XxtStudentScoreExcelDTO>> teamGrouped = new HashMap<>();
-//        for (XxtStudentScoreExcelDTO dto : scores) {
-//            ClassStudent student = snoToStudentMap.get(dto.getSno());
-//            if (student == null) {
-//                log.warn("学号 {} 未在班级中找到，跳过", dto.getSno());
-//                continue;
-//            }
-//            Long teamId = studentIdToTeamId.get(student.getId());
-//            if (teamId == null) {
-//                log.warn("学生 {} 未分组，跳过", student.getName());
-//                continue;
-//            }
-//            teamGrouped.computeIfAbsent(teamId, k -> new ArrayList<>()).add(dto);
-//        }
-//
-//        // 6. 获取 game 设置的积分计算人数限制
-//        Game game = gameService.getById(gameId);
-//        int maxCount = game.getTeamMemberCount(); // 例如只统计前 3 人
-//
-//        // 7. 计算每个小组的总分，并更新
-//        for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : teamGrouped.entrySet()) {
-//            Long teamId = entry.getKey();
-//            List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
-//
-//            // 成绩按分数降序排序（可能需要先转 int）
-//            List<Integer> scoreList = teamScores.stream()
-//                    .map(dto -> {
-//                        try {
-//                            return Integer.parseInt(dto.getScore());
-//                        } catch (NumberFormatException e) {
-//                            log.warn("学号 {} 分数非法 [{}]，按 0 处理", dto.getSno(), dto.getScore());
-//                            return 0;
-//                        }
-//                    })
-//                    .sorted(Comparator.reverseOrder())
-//                    .limit(maxCount)
-//                    .toList();
-//
-//            int totalScore = scoreList.stream().mapToInt(Integer::intValue).sum();
-//
-//            // 更新 team 表的总分
-//            Team team = teamMap.get(teamId);
-//            if (team != null) {
-//                team.setTotalScore(totalScore);
-//                teamService.updateById(team);
-//                log.info("更新小组 {} 总积分为 {}", teamId, totalScore);
-//            }
-//        }
-        return false;
+        Game game = getById(gameId);
+        if (game == null) {
+            throw new CustomException("游戏不存在");
+        }
+        if(game.getStatus() != 1){
+            log.warn("游戏已结束");
+        }
+        if (game.getStage() != 1 || game.getChessPhase() != 0) {
+            throw new CustomException("当前不可进行该操作");
+        }
+        XxtStudentScoreListener listener = new XxtStudentScoreListener();
+        try {
+            EasyExcelFactory.read(file.getInputStream(), listener)
+                    .head(XxtStudentScoreExcelDTO.class)
+                    .sheet()
+                    .headRowNumber(6)
+                    .doRead();
+        } catch (ExcelReadStopException e) {
+            log.info("导入数据结束，读取中断：{}", e.getMessage());
+        } catch (IOException e) {
+            throw new CustomException(CodeEnum.SYSTEM_ERROR);
+        }
+        List<XxtStudentScoreExcelDTO> scores = listener.getData();
+        if (CollectionUtils.isEmpty(scores)) {
+            log.warn("上传数据为空");
+            throw new CustomException("上传数据为空");
+        }
+        // 获取上传的学号集合
+        Set<String> snos = scores.stream()
+                .map(XxtStudentScoreExcelDTO::getSno)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+        // 查询学生信息
+        List<ClassStudent> students = classStudentService.lambdaQuery()
+                .in(ClassStudent::getSno, snos)
+                .list();
+        // 获取学号-学生map
+        Map<String, ClassStudent> snoToStudentMap = students.stream()
+                .collect(Collectors.toMap(ClassStudent::getSno, s -> s));
+        // 查询当前 game 下的 team 列表
+        List<Team> teams = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .list();
+        // teamId → team
+        Map<Long, Team> teamMap = teams.stream()
+                .collect(Collectors.toMap(Team::getId, t -> t));
+        // 查询 teamMember
+        List<Long> teamIds = new ArrayList<>(teamMap.keySet());
+        List<TeamMember> teamMembers = teamMemberService.lambdaQuery()
+                .in(TeamMember::getTeamId, teamIds)
+                .list();
+        // studentId → teamId 映射
+        Map<Long, Long> studentIdToTeamId = teamMembers.stream()
+                .collect(Collectors.toMap(TeamMember::getStudentId, TeamMember::getTeamId));
+        // 按 teamId 分组成员成绩
+        Map<Long, List<XxtStudentScoreExcelDTO>> teamGrouped = new HashMap<>();
+        for (XxtStudentScoreExcelDTO dto : scores) {
+            // 合法的数据
+            boolean valid = true;
+            ClassStudent student = snoToStudentMap.get(dto.getSno());
+            if (student == null) {
+                log.warn("学号 {} 未在班级中找到，跳过", dto.getSno());
+                valid = false;
+            }
+            // 获取 teamId
+            Long teamId = valid ? studentIdToTeamId.get(student.getId()) : null;
+            if (valid && teamId == null) {
+                log.warn("学生 {} 未分组，跳过", student.getName());
+                valid = false;
+            }
+            if (!valid) {
+                continue;
+            }
+            teamGrouped.computeIfAbsent(teamId, k -> new ArrayList<>()).add(dto);
+        }
+        // 获取 game 的积分计算限制
+
+        int maxCount = game.getTeamMemberCount();
+        // 更新每个小组的总分
+        for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : teamGrouped.entrySet()) {
+            Long teamId = entry.getKey();
+            List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
+            List<Integer> scoreList = teamScores.stream()
+                    .map(dto -> {
+                        try {
+                            return Integer.parseInt(dto.getScore());
+                        } catch (NumberFormatException e) {
+                            log.warn("学号 {} 分数非法 [{}]，按 0 处理", dto.getSno(), dto.getScore());
+                            return 0;
+                        }
+                    })
+                    .sorted(Comparator.reverseOrder())
+                    .limit(maxCount)
+                    .toList();
+            int totalScore = scoreList.stream().mapToInt(Integer::intValue).sum();
+            Team team = teamMap.get(teamId);
+            if (team != null) {
+                team.setMemberScoreSum(totalScore);
+                boolean updated = teamService.lambdaUpdate()
+                        .eq(Team::getId, team.getId())
+                        .eq(Team::getGameId, team.getGameId())
+                        .update(team);
+                if (updated) {
+                    log.info("更新小组 {} 总积分为 {}", teamId, totalScore);
+                } else {
+                    log.error("更新小组 {} 积分失败", teamId);
+                }
+            }
+        }
+        //TODO 小组日志, 小组成员日志
+        game.setChessPhase(1);
+        game.setLastSavedAt(new Date());
+        updateById(game);
+        return true;
     }
     private List<TeamInfoDTO> parseExcel(MultipartFile file) {
         List<TeamInfoDTO> groupList = new ArrayList<>();
@@ -219,7 +228,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 return;
             }
             List<MemberDTO> members = parseMembers(row);
-            if (members == null) {
+            if (members.isEmpty()) {
                 log.warn("第 {} 行跳过：成员信息不完整", rowIndex);
                 return;
             }
@@ -261,12 +270,11 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             String id = row.get(colIndex + 1);
             boolean nameEmpty = (name == null || name.trim().isEmpty());
             boolean idEmpty = (id == null || id.trim().isEmpty());
-
             if (nameEmpty && idEmpty) {
                 break;
             }
             if (nameEmpty || idEmpty) {
-                return null;
+                return Collections.emptyList();
             }
             members.add(new MemberDTO(name.trim(), id.trim()));
             colIndex += 2;
@@ -323,21 +331,21 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
     private TeamUploadDTO saveTeamsAndMembers(List<TeamInfoDTO> groupList,
                                               Game game,
                                               Map<String, ClassStudent> map) {
+
         List<Team> teamList = new ArrayList<>();
         List<TeamMember> memberList = new ArrayList<>();
         for (TeamInfoDTO dto : groupList) {
             MemberDTO leaderMember = dto.getLeader();
             ClassStudent leader = (leaderMember != null) ? map.get(leaderMember.getId()) : null;
-
             if (leaderMember == null || leader == null) {
                 continue;
             }
             Team team = new Team();
+            team.setId(dto.getTeamNo());// 这里一定要修改,不然。。。。。
             team.setGameId(game.getId());
             team.setLeaderId(leader.getId());
             team.setLeaderName(leader.getName());
             team.setTotalMembers(1 + dto.getMembers().size());
-            team.setTotalScore(0);
             team.setAlive(1);
             team.setSno(leader.getSno());
             teamList.add(team);
@@ -350,14 +358,14 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             if (leaderMember != null) {
                 ClassStudent leader = map.get(leaderMember.getId());
                 if (leader != null) {
-                    memberList.add(createMember(team.getId(), leader, true));
+                    memberList.add(createMember(team.getId(), leader, game.getId(), true));
                 }
             }
             for (MemberDTO member : dto.getMembers()) {
                 if (member != null) {
                     ClassStudent student = map.get(member.getId());
                     if (student != null) {
-                        memberList.add(createMember(team.getId(), student, false));
+                        memberList.add(createMember(team.getId(), student,game.getId(), false));
                     } else {
                         log.warn("学生 {} 找不到，跳过", member.getName());
                     }
@@ -368,17 +376,18 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         return new TeamUploadDTO(teamList.size(), memberList.size());
     }
 
-    private TeamMember createMember(Long teamId, ClassStudent student, boolean isLeader) {
+    private TeamMember createMember(Long teamId, ClassStudent student,Long gameId, boolean isLeader) {
         TeamMember m = new TeamMember();
         m.setTeamId(teamId);
         m.setStudentId(student.getId());
         m.setStudentName(student.getName());
+        m.setGameId(gameId);
         m.setIsLeader(isLeader ? 1 : 0);
         m.setIndividualScore(0);
         m.setSno(student.getSno());
         return m;
     }
-    private TeamUploadResp buildUploadResp(GameInitReq req, int size,TeamUploadDTO dto) {
+    private TeamUploadResp buildUploadResp(GameInitReq req, int size,TeamUploadDTO dto, Long id) {
         TeamUploadResp resp = new TeamUploadResp();
         resp.setTeamNum(req.getTeamNum());
         resp.setStudentNum(req.getStudentNum());
@@ -387,6 +396,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         resp.setSuccessStudentNum(dto.getSuccessStudentNum());
         resp.setFailStudentNum(req.getStudentNum() - dto.getSuccessStudentNum());
         resp.setAddStudentNum(size);
+        resp.setGameId(id);
         return resp;
     }
     private Map<String, ClassStudent> getClassStudentMap(Long cid) {

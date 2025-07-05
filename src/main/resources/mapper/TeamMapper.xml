@@ -9,18 +9,22 @@
             <result property="gameId" column="game_id" jdbcType="BIGINT"/>
             <result property="leaderId" column="leader_id" jdbcType="BIGINT"/>
             <result property="leaderName" column="leader_name" jdbcType="VARCHAR"/>
+            <result property="sno" column="sno" jdbcType="VARCHAR"/>
             <result property="totalMembers" column="total_members" jdbcType="INTEGER"/>
-            <result property="totalScore" column="total_score" jdbcType="INTEGER"/>
+            <result property="memberScoreSum" column="board_score_imported" jdbcType="INTEGER"/>
+            <result property="boardScoreAdjusted" column="board_score_adjusted" jdbcType="INTEGER"/>
+            <result property="proposalScoreImported" column="proposal_score_imported" jdbcType="INTEGER"/>
+            <result property="proposalScoreAdjusted" column="proposal_score_adjusted" jdbcType="INTEGER"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
             <result property="alive" column="alive" jdbcType="TINYINT"/>
-            <result property="sno" column="sno" jdbcType="VARCHAR"/>
-
     </resultMap>
 
     <sql id="Base_Column_List">
         id,game_id,leader_id,
-        leader_name,total_members,total_score,
-        gmt_create,gmt_update,alive,sno
+        leader_name,sno,total_members,
+        member_score_sum ,board_score_adjusted,proposal_score_imported,
+        proposal_score_adjusted,gmt_create,gmt_update,
+        alive
     </sql>
 </mapper>

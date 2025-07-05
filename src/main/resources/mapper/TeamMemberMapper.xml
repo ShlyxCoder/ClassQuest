@@ -13,11 +13,12 @@
             <result property="individualScore" column="individual_score" jdbcType="INTEGER"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="sno" column="sno" jdbcType="VARCHAR"/>
+        <result property="gameId" column="game_id" jdbcType="BIGINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,team_id,student_id,
         student_name,is_leader,individual_score,
-        gmt_create,sno
+        gmt_create,sno,game_id
     </sql>
 </mapper>

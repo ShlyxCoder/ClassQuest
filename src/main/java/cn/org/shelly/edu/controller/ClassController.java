@@ -7,7 +7,6 @@ import cn.org.shelly.edu.exception.CustomException;
 import cn.org.shelly.edu.model.dto.StudentExcelDTO;
 import cn.org.shelly.edu.model.pojo.ClassStudent;
 import cn.org.shelly.edu.model.pojo.Classes;
-import cn.org.shelly.edu.model.req.FileUploadReq;
 import cn.org.shelly.edu.model.req.UploadSingleStudentReq;
 import cn.org.shelly.edu.model.resp.SingleStudentResp;
 import cn.org.shelly.edu.model.resp.UploadResultResp;
@@ -26,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @RequestMapping("/class")
@@ -111,19 +111,37 @@ public class ClassController {
     public Result<Boolean> addStudent(@Validated @RequestBody UploadSingleStudentReq req) {
         return Result.isSuccess(classService.uploadSingle(req));
     }
-//    @GetMapping("/student/{id}")
-//    @Operation(summary = "获取学生信息")
-//    public Result<ClassStudent> getStudent(@PathVariable Long id) {
-//        return Result.success(classStudentService.getById(id));
-//    }
-    @DeleteMapping("/student/{id}")
-    @Operation(summary = "删除学生")
-    public Result<Boolean> deleteStudent(@PathVariable Long id) {
-        return Result.isSuccess(classStudentService.removeById(id));
+    @DeleteMapping("/student")
+    @Operation(summary = "批量删除学生")
+    public Result<Boolean> deleteStudents(@RequestBody List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Result.fail("删除失败，ID 列表为空");
+        }
+        // 获取任意一个学生所属的班级 ID（假设所有学生都属于同一个班级）
+        ClassStudent any = classStudentService.getById(ids.get(0));
+        if (any == null) {
+            return Result.fail("找不到对应学生");
+        }
+        Long cid = any.getCid();
+        // 删除学生
+        boolean removed = classStudentService.removeByIds(ids);
+        if (removed) {
+            // 查询剩余学生数
+            long studentCount = classStudentService.lambdaQuery()
+                    .eq(ClassStudent::getCid, cid)
+                    .count();
+            // 更新班级中的学生数（假设你有 Classes 表中的 student_count 字段）
+            classService.lambdaUpdate()
+                    .eq(Classes::getId, cid)
+                    .set(Classes::getCurrentStudents, studentCount)
+                    .update();
+        }
+        return Result.isSuccess(removed);
     }
+
     @PutMapping("/student")
     @Operation(summary = "更新学生")
-    public Result<?> updateStudent(@Validated @RequestBody UploadSingleStudentReq req) {
+    public Result<Void> updateStudent(@Validated @RequestBody UploadSingleStudentReq req) {
         // 判断是否有相同学号+姓名+班级，但不是当前记录
         Long duplicateCount = classStudentService.lambdaQuery()
                 .eq(ClassStudent::getSno, req.getSno())

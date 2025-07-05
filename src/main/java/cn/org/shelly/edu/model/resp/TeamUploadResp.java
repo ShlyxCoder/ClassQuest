@@ -12,4 +12,5 @@ public class TeamUploadResp {
     private Integer successStudentNum;
     private Integer failStudentNum;
     private Integer addStudentNum;
+    private Long gameId;
 }
