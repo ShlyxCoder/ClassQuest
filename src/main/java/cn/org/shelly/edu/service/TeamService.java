@@ -1,5 +1,6 @@
 package cn.org.shelly.edu.service;
 import cn.org.shelly.edu.model.pojo.Team;
+import cn.org.shelly.edu.model.req.ScoreUpdateReq;
 import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;

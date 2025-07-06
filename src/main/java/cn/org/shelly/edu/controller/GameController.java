@@ -5,11 +5,10 @@ import cn.org.shelly.edu.exception.CustomException;
 import cn.org.shelly.edu.model.pojo.*;
 import cn.org.shelly.edu.model.req.*;
 import cn.org.shelly.edu.model.resp.*;
-import cn.org.shelly.edu.service.BoardConfigService;
-import cn.org.shelly.edu.service.GameService;
-import cn.org.shelly.edu.service.TeamMemberService;
-import cn.org.shelly.edu.service.TeamService;
+import cn.org.shelly.edu.service.*;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/game")
@@ -28,7 +26,6 @@ import java.util.stream.Collectors;
 public class GameController {
     private final GameService gameService;
     private final BoardConfigService boardConfigService;
-    private final TeamService teamService;
     private final TeamMemberService teamMemberService;
     @PostMapping(value = "/upload")
     @Operation(summary = "上传游戏分组导入")
@@ -79,11 +76,14 @@ public class GameController {
         return Result.success();
     }
 
-    private String listToStr(List<Integer> list) {
-        return list == null ? null : list.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
+    private String listToStr(Object list) {
+        try {
+            return new ObjectMapper().writeValueAsString(list);
+        } catch (JsonProcessingException e) {
+            throw new CustomException("序列化失败");
+        }
     }
+
 
     @GetMapping("/status/{id}")
     @Operation(summary = "获取游戏状态")
@@ -140,16 +140,21 @@ public class GameController {
                                                              @RequestParam Long gameId) {
         return Result.success(gameService.upload(file, gameId));
     }
+    @GetMapping("/xxt/rank/{id}")
+    @Operation(summary = "棋盘赛获取学习通排名")
+    public Result<List<TeamScoreRankResp>> getXXTStudentRank(@PathVariable("id") @Schema(description = "游戏ID") Long id) {
+        return Result.success(gameService.getStudentRank(id));
+    }
     @PostMapping("/upload/assign")
     @Operation(summary = "上传排名分配")
     public Result<Void> uploadAssign(@RequestBody AssignReq req) {
         gameService.uploadAssign(req);
         return Result.success();
     }
-    @GetMapping
+    @GetMapping("/occupyStatus/{gameId}")
     @Operation(summary = "查看棋盘占有")
-    public Result<BoardResp> getTileOccupy(){
-        return Result.fail("服务未实现！");
+    public Result<BoardResp> getTileOccupy(@PathVariable @Schema(description = "游戏ID") Long gameId){
+        return Result.success(gameService.showOccupyStatus(gameId));
     }
 
 
@@ -158,84 +163,62 @@ public class GameController {
     public Result<Boolean> uploadTileOccupy(
           @RequestBody TileOccupyReq req
     ) {
-        return Result.success(gameService.occupy(req));
+        try {
+            return Result.success(gameService.occupy(req,2));
+        } catch (JsonProcessingException e) {
+            throw new CustomException(e);
+        }
     }
-
     @GetMapping("/unselected/{gameId}")
-    @Operation(summary = "查看当前游戏轮次未完成格子选择的小组")
+    @Operation(summary = "查看当前游戏轮次未完成格子选择的小组",description = "若为空时，自动触发下一状态")
     public Result<List<UnselectedTeamResp>> getUnselectedTeams(@PathVariable("gameId") Long gameId) {
         List<UnselectedTeamResp> list = gameService.getUnselectedTeamsByGame(gameId);
         return Result.success(list);
     }
 
-    @PostMapping("/tile/change")
-    @Operation(summary = "领地变更事件")
-    public Result<Void> uploadTileChange() {
-        return Result.fail("服务未实现");
+    @PostMapping("/special/blind-box/settle")
+    @Operation(summary = "结算盲盒秘境触发结果")
+    public Result<Void> settleBlindBoxEvent(@RequestBody BlindBoxSettleReq req) {
+        gameService.settleBlindBoxEvent(req);
+        return Result.success();
+    }
+    @PostMapping("/special/fortress/settle")
+    @Operation(summary = "结算决斗要塞结果")
+    public Result<Void> settleFortressBattle(@RequestBody FortressBattleReq req) {
+        try {
+            gameService.settleFortressBattle(req);
+        } catch (JsonProcessingException e) {
+            throw new CustomException(e);
+        }
+        return Result.success();
+    }
+    @PostMapping("/special/opportunity/settle")
+    @Operation(summary = "结算机会宝地任务")
+    public Result<Void> settleOpportunityTask(@RequestBody OpportunitySettleReq req) {
+        gameService.settleOpportunityTask(req);
+        return Result.success();
+    }
+
+
+    @GetMapping("/special/list")
+    @Operation(summary = "获取当前轮次特殊效果列表")
+    public Result<List<TeamSpecialEffectResp>> getSpecialEffectList(@RequestParam Long gameId) {
+        List<TeamSpecialEffectResp> list = gameService.getSpecialEffectList(gameId);
+        return Result.success(list);
+    }
+
+    @GetMapping("/boardConfig")
+    @Operation(summary = "获取棋盘配置(弃用)")
+    public Result<BoardConfig> getBoardConfig(@RequestParam Long gameId) {
+        BoardConfig boardConfig = boardConfigService.lambdaQuery()
+                .eq(BoardConfig::getGameId, gameId)
+                .one();
+        return Result.success(boardConfig);
     }
     @PostMapping("/score/update")
-    @Operation(summary = "老师操作积分变更")
+    @Operation(summary = "棋盘赛老师操作积分变更")
     public Result<Void> updateScore(@RequestBody ScoreUpdateReq req) {
-        Integer type = req.getType();
-        Integer stage = req.getStage();
-        Long id = req.getId();
-        Long gameId = req.getGameId();
-        Integer num = req.getNum();
-        String comment = req.getComment();
-        if (type == 1) { // 小组
-            Team team = teamService.lambdaQuery()
-                    .eq(Team::getId, id)
-                    .eq(Team::getGameId, gameId)
-                    .one();
-            if (team == null) {
-                throw new CustomException("小组不存在");
-            }
-            if (stage == 1) {
-                team.setBoardScoreAdjusted(team.getBoardScoreAdjusted() + num);
-            } else if (stage == 2) {
-                team.setProposalScoreAdjusted(team.getProposalScoreAdjusted() + num);
-            }
-            teamService.lambdaUpdate()
-                    .eq(Team::getId, team.getId())
-                    .eq(Team::getGameId, gameId)
-                    .update(team);
-            // TODO: 小组积分变更通知（建议日志记录 comment）
-        } else { // 个人
-            TeamMember member = teamMemberService.getById(id);
-            if (member == null) {
-                throw new CustomException("成员不存在");
-            }
-            member.setIndividualScore(member.getIndividualScore() + num);
-            teamMemberService.updateById(member);
-
-            Long teamId = member.getTeamId();
-            Team team = teamService.lambdaQuery()
-                    .eq(Team::getId, teamId)
-                    .eq(Team::getGameId, gameId)
-                    .one();
-            if (team == null) {
-                throw new CustomException("成员所属小组不存在");
-            }
-            Game game = gameService.getById(team.getGameId());
-            if (game == null) {
-                throw new CustomException("游戏不存在");
-            }
-            int maxCount = game.getTeamMemberCount();
-            List<TeamMember> members = teamMemberService.lambdaQuery()
-                    .eq(TeamMember::getTeamId, teamId)
-                    .orderByDesc(TeamMember::getIndividualScore)
-                    .last("LIMIT " + maxCount)
-                    .list();
-            int totalScore = members.stream()
-                    .mapToInt(TeamMember::getIndividualScore)
-                    .sum();
-            team.setMemberScoreSum(totalScore);
-            teamService.lambdaUpdate()
-                    .eq(Team::getId, team.getId())
-                    .eq(Team::getGameId, team.getGameId())
-                    .update(team);
-            // TODO: 个人积分变更通知（建议日志记录 comment）
-        }
+        gameService.updateScore(req);
         return Result.success();
     }
 

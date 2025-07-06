@@ -1,13 +1,10 @@
 package cn.org.shelly.edu.service;
+import cn.org.shelly.edu.common.Result;
 import cn.org.shelly.edu.model.pojo.Game;
-import cn.org.shelly.edu.model.req.AssignReq;
-import cn.org.shelly.edu.model.req.GameInitReq;
-import cn.org.shelly.edu.model.req.TileOccupyReq;
-import cn.org.shelly.edu.model.resp.TeamRankResp;
-import cn.org.shelly.edu.model.resp.TeamScoreRankResp;
-import cn.org.shelly.edu.model.resp.TeamUploadResp;
-import cn.org.shelly.edu.model.resp.UnselectedTeamResp;
+import cn.org.shelly.edu.model.req.*;
+import cn.org.shelly.edu.model.resp.*;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -27,7 +24,21 @@ public interface GameService extends IService<Game> {
 
     List<UnselectedTeamResp> getUnselectedTeamsByGame(Long gameId);
 
-    Boolean occupy(TileOccupyReq req);
+    Boolean occupy(TileOccupyReq req,Integer s) throws JsonProcessingException;
 
     List<TeamRankResp> getTeamRank(Game game);
+
+    BoardResp showOccupyStatus(Long gameId);
+
+    List<TeamSpecialEffectResp> getSpecialEffectList(Long gameId);
+
+    void settleOpportunityTask(OpportunitySettleReq req);
+
+    void settleFortressBattle(FortressBattleReq req) throws JsonProcessingException;
+
+    void settleBlindBoxEvent(BlindBoxSettleReq req);
+
+    List<TeamScoreRankResp> getStudentRank(Long id);
+
+    void updateScore(ScoreUpdateReq req);
 }

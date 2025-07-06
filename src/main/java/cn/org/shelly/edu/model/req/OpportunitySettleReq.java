@@ -6,15 +6,22 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class TileOccupyReq {
+public class OpportunitySettleReq {
+
     @Schema(description = "游戏ID")
     private Long gameId;
 
     @Schema(description = "小组ID")
     private Long teamId;
 
-    @Schema(description = "格子ID列表")
-    private List<Integer> tileIds;
+    @Schema(description = "触发的机会宝地格子ID")
+    private Integer tileId;
+
+    @Schema(description = "是否成功完成任务")
+    private Boolean success;
+
+    @Schema(description = "选择的一系列格子")
+    private List<Integer> rewardTileIds;
 
     @Schema(description = "是否触发天降领地")
     private Boolean triggerBlindBox;

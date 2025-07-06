@@ -4,8 +4,12 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -49,7 +53,8 @@ public class StudentScoreLog implements Serializable {
      * 得分原因
      */
     @TableField(value = "reason")
-    private String reason;
+    @Schema(description = "得分原因(1：老师加分，2：老师扣分，3：学习通导入成绩)")
+    private Integer reason;
 
     /**
      * 轮次（可选）
@@ -69,6 +74,26 @@ public class StudentScoreLog implements Serializable {
     @TableField(value = "gmt_create")
     private Date gmtCreate;
 
+    /**
+     * 备注
+     */
+    @TableField(value = "comment")
+    private String comment;
+
     @TableField(exist = false)
+    @Serial
     private static final long serialVersionUID = 1L;
+
+    public static StudentScoreLog createLog(Long studentId, Long teamId, Long gameId, Integer score, Integer stage, Integer round, String comment) {
+        StudentScoreLog log = new StudentScoreLog();
+        log.setStudentId(studentId);
+        log.setTeamId(teamId);
+        log.setGameId(gameId);
+        log.setScore(score);
+        log.setReason(score > 0 ? 1 : 2);
+        log.setPhase(stage);
+        log.setRound(round);
+        log.setComment(comment);
+        return log;
+    }
 }

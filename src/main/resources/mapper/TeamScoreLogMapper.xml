@@ -9,15 +9,17 @@
             <result property="teamId" column="team_id" jdbcType="BIGINT"/>
             <result property="gameId" column="game_id" jdbcType="BIGINT"/>
             <result property="score" column="score" jdbcType="INTEGER"/>
-            <result property="reason" column="reason" jdbcType="VARCHAR"/>
+            <result property="reason" column="reason" jdbcType="TINYINT"/>
             <result property="round" column="round" jdbcType="INTEGER"/>
             <result property="phase" column="phase" jdbcType="TINYINT"/>
+        <result property="comment" column="comment" jdbcType="VARCHAR"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+        <result property="submitTime" column="submit_time" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,team_id,game_id,
         score,reason,round,
-        phase,gmt_create
+        phase,gmt_create,submit_time,comment
     </sql>
 </mapper>

@@ -25,13 +25,6 @@ public class BoardResp {
     private List<Integer> opportunityTiles;
 
     @Schema(description = "小组信息")
-    private List<TeamTileRsp> teams;
-    static class TeamTileRsp{
-        @Schema(description = "小组ID")
-        private Long teamId;
-
-        @Schema(description = "该小组占有的所有格子编号（整数列表）")
-        private List<Integer> occupiedTiles;
-    }
+    private List<TeamTileResp> teams;
 
 }

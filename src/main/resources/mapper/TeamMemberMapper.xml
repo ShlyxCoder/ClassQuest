@@ -21,11 +21,10 @@
         student_name,is_leader,individual_score,
         gmt_create,sno,game_id
     </sql>
-    <update id="batchAddScore">
-        <foreach collection="list" item="item" separator=";">
-            UPDATE team_member
-            SET individual_score = COALESCE(individual_score, 0) + #{item.addScore}
-            WHERE sno = #{item.sno} AND game_id = #{gameId}
-        </foreach>
+    <update id="addScore">
+        UPDATE team_member
+        SET individual_score = COALESCE(individual_score, 0) + #{addScore}
+        WHERE sno = #{sno} AND game_id = #{gameId}
     </update>
+
 </mapper>

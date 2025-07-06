@@ -13,8 +13,7 @@ import java.util.List;
 * @Entity cn/org/shelly/edu/model/pojo.domain.TeamMember
 */
 public interface TeamMemberMapper extends BaseMapper<TeamMember> {
-
-    int batchAddScore(@Param("list") List<ScoreUpdateDTO> list, @Param("gameId") Long gameId);
+    int addScore(@Param("sno") String sno, @Param("gameId") Long gameId, @Param("addScore") Integer addScore);
 
 }
 

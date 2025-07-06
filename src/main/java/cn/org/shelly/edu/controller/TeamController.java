@@ -60,6 +60,7 @@ public class TeamController {
         List<Long> teamIds = teams.stream().map(Team::getId).toList();
         // 查询所有成员
         List<TeamMember> allMembers = teamMemberService.lambdaQuery()
+                .eq(TeamMember::getGameId, gameId)
                 .in(TeamMember::getTeamId, teamIds).list();
         // 分组成员
         Map<Long, List<TeamMember>> memberMap = allMembers.stream()

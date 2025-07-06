@@ -14,11 +14,12 @@
             <result property="round" column="round" jdbcType="INTEGER"/>
             <result property="phase" column="phase" jdbcType="TINYINT"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
+        <result property="comment" column="comment" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,student_id,team_id,
         game_id,score,reason,
-        round,phase,gmt_create
+        round,phase,gmt_create,comment
     </sql>
 </mapper>
