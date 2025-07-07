@@ -240,14 +240,6 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         }
         return result;
     }
-
-    private String listToStr(Object list) {
-        try {
-            return new ObjectMapper().writeValueAsString(list);
-        } catch (JsonProcessingException e) {
-            throw new CustomException("序列化失败");
-        }
-    }
     @Override
     public Boolean occupy(TileOccupyReq req, Integer status) throws JsonProcessingException {
         Game game = getById(req.getGameId());
@@ -282,11 +274,12 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         if (selectedTiles == null || selectedTiles.isEmpty()) {
             throw new CustomException("请选择至少一个格子");
         }
-        // 分类：先全部选中格子分类
+        // 分类：将选择的格子按类型分类
         List<BoardInitReq.BlindBoxTile> blindBoxSelected = new ArrayList<>();
         List<BoardInitReq.FortressTile> fortressSelected = new ArrayList<>();
         List<Integer> goldCenterSelected = new ArrayList<>();
         List<Integer> opportunitySelected = new ArrayList<>();
+
         for (Integer tileId : selectedTiles) {
             blindBoxTilesList.stream()
                     .filter(b -> b.getTileId().equals(tileId))
@@ -303,32 +296,35 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 opportunitySelected.add(tileId);
             }
         }
-        // 剔除触发的天降领地（不入 action 表）
+        // 剔除触发的盲盒
         if (Boolean.TRUE.equals(req.getTriggerBlindBox()) && req.getBlindBoxTileIds() != null) {
             Set<Integer> triggered = new HashSet<>(req.getBlindBoxTileIds());
             blindBoxSelected = blindBoxSelected.stream()
                     .filter(b -> !(triggered.contains(b.getTileId()) && b.getEventType() == 0))
                     .toList();
         }
-        // 剔除触发的黄金中心（不入 action 表）
+        // 剔除触发的黄金中心
         if (Boolean.TRUE.equals(req.getTriggerGoldCenter()) && req.getGoldCenterTileId() != null) {
             goldCenterSelected = goldCenterSelected.stream()
                     .filter(id -> !id.equals(req.getGoldCenterTileId()))
                     .toList();
         }
-        // 只记录格子状态到 action，不动 config
+        // 获取 action 记录
         TeamTileAction action = teamTileActionService.lambdaQuery()
                 .eq(TeamTileAction::getGameId, req.getGameId())
                 .eq(TeamTileAction::getTeamId, req.getTeamId())
                 .eq(TeamTileAction::getRound, game.getChessRound())
                 .one();
+        if (action == null) {
+            throw new CustomException("未找到该队伍的行动记录");
+        }
         action.setPhase(2);
-        action.setAllTiles(joinTiles(selectedTiles));
-        action.setBlindBoxTiles(listToStr(blindBoxSelected));
-        action.setFortressTiles(listToStr(fortressSelected));
-        action.setGoldCenterTiles(listToStr(goldCenterSelected));
-        action.setOpportunityTiles(listToStr(opportunitySelected));
-        action.setSettledTileCount(selectedTiles.size());
+        action.setAllTiles(mergeTiles(action.getAllTiles(), selectedTiles));
+        action.setBlindBoxTiles(mergeJsonList(action.getBlindBoxTiles(), blindBoxSelected, BoardInitReq.BlindBoxTile::getTileId, BoardInitReq.BlindBoxTile.class));
+        action.setFortressTiles(mergeJsonList(action.getFortressTiles(), fortressSelected, BoardInitReq.FortressTile::getTileId, BoardInitReq.FortressTile.class));
+        action.setGoldCenterTiles(mergeTiles(action.getGoldCenterTiles(), goldCenterSelected));
+        action.setOpportunityTiles(mergeTiles(action.getOpportunityTiles(), opportunitySelected));
+        action.setSettledTileCount(mergeTilesToCount(action.getAllTiles()));
         action.setSelected(1);
         boolean saved = teamTileActionService.updateById(action);
         if (!saved) {
@@ -377,6 +373,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         List<TeamTileAction> actions = teamTileActionService.lambdaQuery()
                 .eq(TeamTileAction::getGameId, gameId)
                 .list();
+
         // 2. 获取游戏棋盘配置
         BoardConfig config = boardConfigService.lambdaQuery()
                 .eq(BoardConfig::getGameId, gameId)
@@ -384,42 +381,53 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         if (config == null) {
             throw new CustomException("游戏配置不存在");
         }
+
         ObjectMapper mapper = new ObjectMapper();
-        // 3. 解析各类配置格子（原始未触发）
         List<Integer> blackSwampTiles;
         List<BoardInitReq.BlindBoxTile> blindBoxTiles;
         List<BoardInitReq.FortressTile> fortressTiles;
         List<Integer> goldCenterTiles;
         List<Integer> opportunityTiles;
+
         try {
-            blackSwampTiles = mapper.readValue(config.getBlackSwampTiles(), new TypeReference<>() {
-            });
-            blindBoxTiles = mapper.readValue(config.getBlindBoxTiles(), new TypeReference<>() {
-            });
-            fortressTiles = mapper.readValue(config.getFortressTiles(), new TypeReference<>() {
-            });
-            goldCenterTiles = mapper.readValue(config.getGoldCenterTiles(), new TypeReference<>() {
-            });
-            opportunityTiles = mapper.readValue(config.getOpportunityTiles(), new TypeReference<>() {
-            });
+            blackSwampTiles = mapper.readValue(config.getBlackSwampTiles(), new TypeReference<>() {});
+            blindBoxTiles = mapper.readValue(config.getBlindBoxTiles(), new TypeReference<>() {});
+            fortressTiles = mapper.readValue(config.getFortressTiles(), new TypeReference<>() {});
+            goldCenterTiles = mapper.readValue(config.getGoldCenterTiles(), new TypeReference<>() {});
+            opportunityTiles = mapper.readValue(config.getOpportunityTiles(), new TypeReference<>() {});
         } catch (JsonProcessingException e) {
             throw new CustomException("解析棋盘配置失败");
         }
-        // 4. 构造小组 -> 所有占领格子 Map
+
+        // 3. 小组 -> 占领格子映射
         Map<Long, List<Integer>> teamTilesMap = new HashMap<>();
         for (TeamTileAction action : actions) {
             List<Integer> tiles = parseTiles(action.getAllTiles());
             teamTilesMap.computeIfAbsent(action.getTeamId(), k -> new ArrayList<>()).addAll(tiles);
         }
-        // 5. 构造 BoardResp
+
+        // 4. 构造 BoardResp
         BoardResp resp = new BoardResp();
         resp.setTotalTiles(config.getTotalTiles());
         resp.setBlackSwampTiles(blackSwampTiles);
-        // 盲盒、要塞只提取 tileId 字段
-        resp.setBlindBoxTiles(blindBoxTiles.stream().map(BoardInitReq.BlindBoxTile::getTileId).toList());
-        resp.setFortressTiles(fortressTiles.stream().map(BoardInitReq.FortressTile::getTileId).toList());
+
+        // ✳ 盲盒格子排序输出：eventType: 0（2个），1（1个），2（1个）
+        List<Integer> sortedBlindBox = blindBoxTiles.stream()
+                .sorted(Comparator.comparingInt(BoardInitReq.BlindBoxTile::getEventType))
+                .map(BoardInitReq.BlindBoxTile::getTileId)
+                .toList();
+        resp.setBlindBoxTiles(sortedBlindBox);
+
+        // ✳ 决斗要塞格子排序输出：gameType: 0（2个），1（2个）
+        List<Integer> sortedFortress = fortressTiles.stream()
+                .sorted(Comparator.comparingInt(BoardInitReq.FortressTile::getGameType))
+                .map(BoardInitReq.FortressTile::getTileId)
+                .toList();
+        resp.setFortressTiles(sortedFortress);
+
         resp.setGoldCenterTiles(goldCenterTiles);
         resp.setOpportunityTiles(opportunityTiles);
+
         // 小组占领格子封装
         List<TeamTileResp> teamResp = teamTilesMap.entrySet().stream()
                 .map(entry -> {
@@ -429,6 +437,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     return team;
                 }).toList();
         resp.setTeams(teamResp);
+
         return resp;
     }
 
@@ -568,7 +577,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         }
         teamTileAction.setOpportunityTiles(null);
         teamTileActionService.updateById(teamTileAction);
-        if(req.getSuccess()){
+        if(Boolean.TRUE.equals(req.getSuccess())){
             TileOccupyReq occupyReq = new TileOccupyReq();
             occupyReq.setGameId(req.getGameId());
             occupyReq.setTeamId(req.getTeamId());
@@ -752,19 +761,16 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
     }
 
     private void addTilesToWinnerAction(Long gameId, Long teamId, List<Integer> newTiles) {
+        Game game = getById(gameId);
         TeamTileAction winnerAction = teamTileActionService.lambdaQuery()
                 .eq(TeamTileAction::getGameId, gameId)
                 .eq(TeamTileAction::getTeamId, teamId)
                 .eq(TeamTileAction::getPhase, 2)
-                .orderByDesc(TeamTileAction::getRound)
-                .last("LIMIT 1")
+                .eq(TeamTileAction::getRound, game.getChessRound())
                 .one();
         if (winnerAction == null) throw new CustomException("胜者数据缺失");
-        List<Integer> tiles = parseTiles(winnerAction.getAllTiles());
-        tiles.addAll(newTiles);
-        winnerAction.setAllTiles(joinTiles(tiles));
-        winnerAction.setSettledTileCount(tiles.size());
-        // 这里调用更新
+        winnerAction.setAllTiles(mergeTiles(winnerAction.getAllTiles(), newTiles));
+        winnerAction.setSettledTileCount(mergeTilesToCount(winnerAction.getAllTiles()));
         boolean updated = teamTileActionService.updateById(winnerAction);
         if (!updated) {
             throw new CustomException("更新胜者格子数据失败");
@@ -1238,6 +1244,45 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 .eq(ClassStudent::getIsDeleted,0)
                 .list();
         return list.stream().collect(Collectors.toMap(ClassStudent::getSno, classStudent -> classStudent));
+    }
+    private String mergeTiles(String oldTilesStr, List<Integer> newTiles) {
+        Set<Integer> set = new LinkedHashSet<>();
+        if (StringUtils.hasText(oldTilesStr)) {
+            Arrays.stream(oldTilesStr.split(","))
+                    .map(String::trim)
+                    .map(Integer::valueOf)
+                    .forEach(set::add);
+        }
+        if (newTiles != null) {
+            set.addAll(newTiles);
+        }
+        return set.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    }
+
+    private int mergeTilesToCount(String mergedTilesStr) {
+        if (!StringUtils.hasText(mergedTilesStr)) return 0;
+        return (int) Arrays.stream(mergedTilesStr.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .count();
+    }
+
+    private <T> String mergeJsonList(String oldJson, List<T> newList, Function<T, Integer> idGetter, Class<T> clazz) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        List<T> oldList = new ArrayList<>();
+        if (StringUtils.hasText(oldJson)) {
+            oldList = mapper.readValue(oldJson, mapper.getTypeFactory().constructCollectionType(List.class, clazz));
+        }
+        Map<Integer, T> map = new LinkedHashMap<>();
+        for (T item : oldList) {
+            map.put(idGetter.apply(item), item);
+        }
+        for (T item : newList) {
+            map.put(idGetter.apply(item), item);
+        }
+        return mapper.writeValueAsString(new ArrayList<>(map.values()));
     }
 
 }
