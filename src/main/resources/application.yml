@@ -14,13 +14,13 @@ spring:
     format:
       date: yyyy-MM-dd HH:mm:ss
   datasource:
-    url: jdbc:mysql://<HOST>:<PORT>/classquest?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8
-    username: classquest
-    password: classquest
+    url: jdbc:mysql://<><>/classquest?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8
+    username:
+    password:
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: <HOST>
+      host:
       port: 6379
       # 链接超时时间
       timeout: 10s
@@ -56,6 +56,16 @@ spring:
             class: javax.net.ssl.SSLSocketFactory
           ssl:
             enable: true
+  ai:
+    openai:
+      base-url: https://api.deepseek.com
+      api-key:
+      embedding:
+        enabled: false
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.8
 
 # sa-token配置
 sa-token:

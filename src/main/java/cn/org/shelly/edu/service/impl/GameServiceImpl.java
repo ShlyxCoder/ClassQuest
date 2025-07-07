@@ -19,8 +19,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,6 +49,9 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
     private final TeamMemberMapper teamMemberMapper;
     private final StudentScoreLogService studentScoreLogService;
     private final TeamScoreLogService teamScoreLogService;
+    @Resource
+    private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+
 
     @Override
     public TeamUploadResp init(GameInitReq req) {
@@ -108,8 +113,46 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         }).toList();
         // 3. 批量插入日志
         teamScoreLogService.saveBatch(logs);
+        // 获取所有学生信息，或许可以放入异步？
+        List<TeamMember> members = teamMemberService.lambdaQuery()
+                .eq(TeamMember::getGameId, gameId)
+                .list();
+      // 构建 SNO -> TeamMember 映射
+        Map<String, TeamMember> memberMap = members.stream()
+                .collect(Collectors.toMap(TeamMember::getSno, m -> m, (a, b) -> a));
+        threadPoolTaskExecutor.execute(() -> {
+            List<StudentScoreLog> studentLogs = scores.stream()
+                    .map(dto -> {
+                        TeamMember member = memberMap.get(dto.getSno());
+                        if (member == null) {
+                            // 可选：记录日志或忽略
+                            return null;
+                        }
+                        StudentScoreLog log = new StudentScoreLog();
+                        log.setStudentId(member.getStudentId());
+                        log.setTeamId(member.getTeamId());
+                        log.setGameId(gameId);
+                        log.setScore(parseScore(dto.getScore()));
+                        log.setReason(3);
+                        log.setPhase(1);
+                        log.setRound(game.getChessRound());
+                        log.setComment("棋盘赛从学习通导入成绩");
+                        return log;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            studentScoreLogService.saveBatch(studentLogs);
+        });
         return rankList;
     }
+    private int parseScore(String raw) {
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (Exception e) {
+            return 0; // 或抛异常/记录警告
+        }
+    }
+
 
     @Override
     public void uploadAssign(AssignReq req) {
@@ -147,24 +190,6 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         if (game.getChessPhase() != 2) {
             throw new CustomException("当前不是走棋阶段");
         }
-        List<Long> sortedTeamIds = teamScoreLogService.lambdaQuery()
-                .select(TeamScoreLog::getTeamId)
-                .eq(TeamScoreLog::getGameId, gameId)
-                .eq(TeamScoreLog::getPhase, 1)
-                .eq(TeamScoreLog::getReason, 3)
-                .eq(TeamScoreLog::getRound, game.getChessRound())
-                .orderByDesc(TeamScoreLog::getScore)
-                .orderByAsc(TeamScoreLog::getSubmitTime)
-                .list()
-                .stream()
-                .map(TeamScoreLog::getTeamId)
-                .distinct()
-                .toList();
-        Map<Long, Team> teamMap = teamService.lambdaQuery()
-                .eq(Team::getGameId, gameId)
-                .list()
-                .stream()
-                .collect(Collectors.toMap(Team::getId, t -> t));
         Map<Long, TeamTileAction> unselectedMap = teamTileActionService.lambdaQuery()
                 .eq(TeamTileAction::getGameId, gameId)
                 .eq(TeamTileAction::getRound, game.getChessRound())
@@ -172,15 +197,35 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 .list()
                 .stream()
                 .collect(Collectors.toMap(TeamTileAction::getTeamId, action -> action));
+        log.info("未选择的小组：{}", unselectedMap.keySet());
         if (unselectedMap.isEmpty()) {
             game.setChessPhase(3);
             updateById(game);
             return Collections.emptyList();
         }
+        List<Long> sortedTeamIds = teamScoreLogService.lambdaQuery()
+                .select(TeamScoreLog::getTeamId)
+                .eq(TeamScoreLog::getGameId, gameId)
+                .eq(TeamScoreLog::getPhase, 1)
+                .eq(TeamScoreLog::getReason, 3)
+                .eq(TeamScoreLog::getRound, game.getChessRound())
+                .in(TeamScoreLog::getTeamId, unselectedMap.keySet())
+                .orderByDesc(TeamScoreLog::getScore)
+                .orderByAsc(TeamScoreLog::getSubmitTime)
+                .list()
+                .stream()
+                .map(TeamScoreLog::getTeamId)
+                .distinct()
+                .toList();
+        log.info("已排序的小组：{}", sortedTeamIds);
+        Map<Long, Team> teamMap = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .in(Team::getId, unselectedMap.keySet())
+                .list()
+                .stream()
+                .collect(Collectors.toMap(Team::getId, t -> t));
         List<UnselectedTeamResp> result = new ArrayList<>();
         for (Long teamId : sortedTeamIds) {
-            if (!unselectedMap.containsKey(teamId)) continue;
-
             Team team = teamMap.get(teamId);
             TeamTileAction action = unselectedMap.get(teamId);
             if (team != null && action != null) {
@@ -272,10 +317,11 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     .toList();
         }
         // 只记录格子状态到 action，不动 config
-        TeamTileAction action = new TeamTileAction();
-        action.setGameId(req.getGameId());
-        action.setTeamId(req.getTeamId());
-        action.setRound(game.getChessRound());
+        TeamTileAction action = teamTileActionService.lambdaQuery()
+                .eq(TeamTileAction::getGameId, req.getGameId())
+                .eq(TeamTileAction::getTeamId, req.getTeamId())
+                .eq(TeamTileAction::getRound, game.getChessRound())
+                .one();
         action.setPhase(2);
         action.setAllTiles(joinTiles(selectedTiles));
         action.setBlindBoxTiles(listToStr(blindBoxSelected));
@@ -284,7 +330,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         action.setOpportunityTiles(listToStr(opportunitySelected));
         action.setSettledTileCount(selectedTiles.size());
         action.setSelected(1);
-        boolean saved = teamTileActionService.save(action);
+        boolean saved = teamTileActionService.updateById(action);
         if (!saved) {
             throw new CustomException("保存格子选择记录失败");
         }
