@@ -3,7 +3,6 @@ package cn.org.shelly.edu.model.req;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-
 @Data
 public class ProposalVoteItem {
     @Schema(description = "小组ID")

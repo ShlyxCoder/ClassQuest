@@ -482,6 +482,23 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         winnerProposal.setElectedScore(winnerScore);
         winnerProposal.setSelected(1);
         this.updateById(winnerProposal);
+
+        if (round == 1 && winnerProposal.getInvolvedTeams() != null) {
+            Set<Long> involvedTeamIds = Arrays.stream(winnerProposal.getInvolvedTeams().split(","))
+                    .map(Long::valueOf)
+                    .collect(Collectors.toSet());
+            // 设置未参与队伍 alive = -1
+            List<Team> toEliminate = teamMap.values().stream()
+                    .filter(team -> !involvedTeamIds.contains(team.getId()) && team.getAlive() == 1)
+                    .toList();
+            for (Team team : toEliminate) {
+                teamService.lambdaUpdate()
+                        .eq(Team::getId, team.getId())
+                        .eq(Team::getGameId, gameId)
+                        .set(Team::getAlive, -1)
+                        .update();
+            }
+        }
         // 构造返回结果
         VoteWinnerResp resp = new VoteWinnerResp();
         resp.setProposalId(winnerProposalId);
@@ -563,14 +580,15 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         List<ProposalRoundTeamScore> teamScoreList = new ArrayList<>();
         int round = Optional.ofNullable(
                         proposalRoundTeamScoreService.lambdaQuery()
-                                .select(ProposalRoundTeamScore::getRound)
+                                .select(ProposalRoundTeamScore::getSubRound)
                                 .eq(ProposalRoundTeamScore::getGameId, gameId)
-                                .orderByDesc(ProposalRoundTeamScore::getRound)
+                                .orderByDesc(ProposalRoundTeamScore::getSubRound)
                                 .last("limit 1")
                                 .one()
                 )
-                .map(ProposalRoundTeamScore::getRound)
+                .map(ProposalRoundTeamScore::getSubRound)
                 .orElse(0);
+        log.info("先前轮次：{}", round);
         for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : groupMap.entrySet()) {
             Long teamId = entry.getKey();
             List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
@@ -639,6 +657,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 teamMemberMapper.addScore(dto.getSno(), game.getId(), dto.getAddScore());
             }
         }
+        log.info("上传成绩成功，更新小组得分：{}", teamScoreList);
         proposalRoundTeamScoreService.saveBatch(teamScoreList);
         // 获取所有学生信息，或许可以放入异步？
         List<TeamMember> members = teamMemberService.lambdaQuery()
@@ -755,14 +774,21 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
 
         // 获取淘汰排名
         List<ProposalOutStatusResp> ranks = getFirstRank(req.getGameId());
+        log.info("获取小组排名结果：{}", ranks);
         Map<Long, Integer> teamToRank = ranks.stream()
-                .collect(Collectors.toMap(ProposalOutStatusResp::getTeamId, ProposalOutStatusResp::getRank));
+                .filter(resp -> resp.getRank() != null)
+                .collect(Collectors.toMap(
+                        ProposalOutStatusResp::getTeamId,
+                        ProposalOutStatusResp::getRank
+                ));
 
         // 根据排名对 involvedTeams 排序
         List<Long> sortedTeams = involvedTeamIds.stream()
                 .sorted(Comparator.comparingInt(teamToRank::get))
                 .toList();
-
+        log.info("结算排序结果：{}", sortedTeams.stream()
+                .map(id -> String.format("teamId=%d, rank=%d", id, teamToRank.get(id)))
+                .toList());
         // 批量查小组并累加分数
         List<Team> teamList = teamService.lambdaQuery()
                 .eq(Team::getGameId, req.getGameId())
@@ -821,57 +847,57 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
     public List<ProposalOutStatusResp> getFirstRank(Long gameId) {
         Game game = gameService.getById(gameId);
         if (game == null) {
-            throw new CustomException("无效的gameId");
+            throw new CustomException("无效的 gameId");
         }
         if (game.getStage() != 2 || game.getProposalRound() < 1) {
             throw new CustomException("当前阶段不能查看淘汰赛小组排名");
         }
-
         List<Team> teamList = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
                 .list();
+        List<ProposalOutStatusResp> aliveList = new ArrayList<>();
+        List<ProposalOutStatusResp> outList = new ArrayList<>();
+        List<ProposalOutStatusResp> unjoinedList = new ArrayList<>();
 
-        List<ProposalOutStatusResp> respList = teamList.stream()
-                .map(team -> {
-                    ProposalOutStatusResp resp = new ProposalOutStatusResp();
-                    resp.setTeamId(team.getId());
-                    resp.setName(team.getLeaderName());
-                    resp.setScore(team.getProposalScoreImported() == null ? 0 : team.getProposalScoreImported());
-                    resp.setAlive(team.getAlive() != null && team.getAlive() == 1);
-                    resp.setOutTime(team.getEliminatedTime());
-                    return resp;
-                })
-                .sorted((a, b) -> {
-                    // 1. 按 alive 倒序（alive=true排前面）
-                    int aliveCompare = Boolean.compare(b.getAlive(), a.getAlive());
-                    if (aliveCompare != 0) return aliveCompare;
+        for (Team team : teamList) {
+            ProposalOutStatusResp resp = new ProposalOutStatusResp();
+            resp.setTeamId(team.getId());
+            resp.setName(team.getLeaderName());
+            resp.setAlive(team.getAlive());
+            resp.setOutTime(team.getEliminatedTime());
 
-                    // 2a. 如果都活着，按名字字典序升序
-                    if (a.getAlive() && b.getAlive()) {
-                        return a.getName().compareToIgnoreCase(b.getName());
-                    }
-
-                    // 2b. 如果都淘汰了，按淘汰时间升序
-                    if (Boolean.TRUE.equals(!a.getAlive()) && Boolean.TRUE.equals(!b.getAlive())) {
-                        if (a.getOutTime() == null && b.getOutTime() != null) return 1;
-                        if (a.getOutTime() != null && b.getOutTime() == null) return -1;
-                        if (a.getOutTime() == null) return 0;
-                        return a.getOutTime().compareTo(b.getOutTime());
-                    }
-
-                    return 0;
-                })
-                .toList();
-        int currentRank = 2;
-        for (ProposalOutStatusResp resp : respList) {
-            if (Boolean.TRUE.equals(resp.getAlive())) {
-                resp.setRank(1);
+            if (team.getAlive() == 1) {
+                aliveList.add(resp);
+            } else if (team.getAlive() == 0) {
+                outList.add(resp);
             } else {
-                resp.setRank(currentRank++);
+                unjoinedList.add(resp);
             }
         }
-        return respList;
+        // 1. 所有存活的队伍 -> rank = 1
+        for (ProposalOutStatusResp alive : aliveList) {
+            alive.setRank(1);
+        }
+        // 2. 淘汰队伍按时间升序排序
+        outList.sort((a, b) -> {
+            if (a.getOutTime() == null && b.getOutTime() != null) return 1;
+            if (a.getOutTime() != null && b.getOutTime() == null) return -1;
+            if (a.getOutTime() == null) return 0;
+            // 正确的：按淘汰时间降序，淘汰越晚的排前面
+            return b.getOutTime().compareTo(a.getOutTime());
+        });
+        // 3. 淘汰的排名从存活之后开始排
+        int rank = aliveList.isEmpty() ? 1 : 2;
+        for (ProposalOutStatusResp out : outList) {
+            out.setRank(rank++);
+        }
+        List<ProposalOutStatusResp> result = new ArrayList<>();
+        result.addAll(aliveList);
+        result.addAll(outList);
+        result.addAll(unjoinedList);
+        return result;
     }
+
 
     @Override
     public DebateEvaluationResp evaluateDebateScore(DebateEvaluationReq req) {

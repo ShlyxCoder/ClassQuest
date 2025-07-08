@@ -37,7 +37,6 @@ public interface ProposalService extends IService<Proposal> {
 
     ProposalFirstSettleResp outTeam(OutTeamReq req);
 
-
     List<ProposalOutStatusResp> getFirstRank(Long gameId);
 
     DebateEvaluationResp evaluateDebateScore(DebateEvaluationReq req);

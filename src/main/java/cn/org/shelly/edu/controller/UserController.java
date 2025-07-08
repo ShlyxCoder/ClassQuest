@@ -2,9 +2,6 @@ package cn.org.shelly.edu.controller;
 
 import cn.dev33.satoken.annotation.SaIgnore;
 import cn.dev33.satoken.stp.StpUtil;
-import cn.hutool.captcha.CaptchaUtil;
-import cn.hutool.captcha.LineCaptcha;
-import cn.hutool.core.codec.Base64;
 import cn.org.shelly.edu.annotation.AccessLimit;
 import cn.org.shelly.edu.common.Result;
 import cn.org.shelly.edu.constants.RedisConstants;
@@ -23,13 +20,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import static cn.org.shelly.edu.constants.RedisConstants.CAPTCHA_CODE_KEY_PREFIX;
-import static cn.org.shelly.edu.constants.RedisConstants.LOGIN_FAIL_KEY_PREFIX;
-
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
@@ -53,7 +43,7 @@ public class UserController {
         return Result.success();
     }
     @Operation(summary = "发送邮箱验证码")
-    //@AccessLimit(seconds = 60, maxCount = 1)
+    @AccessLimit(seconds = 60, maxCount = 1)
     @SaIgnore
     @GetMapping("/sendCode")
     public Result<String> sendCode(@RequestParam("identifier") String identifier){
@@ -96,7 +86,7 @@ public class UserController {
     }
     @PutMapping("/pwd")
     @Operation(summary = "修改密码")
-    public Result<?> updatePassword(@RequestBody PasswordReq param){
+    public Result<Boolean> updatePassword(@RequestBody PasswordReq param){
         User user = userService.getById(StpUtil.getLoginIdAsString());
         if(!PasswordUtils.match(param.oldPassword(),user.getPassword())){
             return Result.fail(CodeEnum.PASSWORD_ERROR);
@@ -109,7 +99,7 @@ public class UserController {
     }
     @PutMapping("/update")
     @Operation(summary = "更新个人信息(只能改头像，昵称)")
-    public Result<?> update(@RequestBody UserReq param){
+    public Result<Void> update(@RequestBody UserReq param){
         userService.updateInfo(param);
         return Result.success();
     }

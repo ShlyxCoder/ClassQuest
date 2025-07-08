@@ -23,7 +23,7 @@ public class CourseController {
     private final CourseService courseService;
     @PostMapping
     @Operation(summary = "添加课程")
-    public Result<?> addCourse(@RequestBody CourseReq req){
+    public Result<Void> addCourse(@RequestBody CourseReq req){
         Long uid = StpUtil.getLoginIdAsLong();
         Course course = CourseReq.toCourse(req);
         course.setTId(uid);
@@ -39,7 +39,7 @@ public class CourseController {
     }
     @PutMapping
     @Operation(summary = "修改课程")
-    public Result<?> updateCourse(@RequestBody CourseReq req){
+    public Result<Void> updateCourse(@RequestBody CourseReq req){
         Long uid = StpUtil.getLoginIdAsLong();
         Course course = CourseReq.toCourse(req);
         course.setTId(uid);
@@ -55,8 +55,7 @@ public class CourseController {
     }
     @DeleteMapping("/{id}")
     @Operation(summary = "删除课程")
-    public Result<?> delete(@PathVariable("id") Long id){
-        //TODO:校验
+    public Result<Void> delete(@PathVariable("id") Long id){
         courseService.removeById(id);
         return Result.success();
     }
