@@ -7,7 +7,8 @@ import java.util.List;
 
 @Data
 public class ProposalCommonResp {
-
+    @Schema(description = "提案ID")
+    private Long id;
     @Schema(description = "提案小组ID")
     private Long proposerTeamId;
     @Schema(description = "组长名字")

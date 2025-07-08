@@ -1149,6 +1149,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         List<ProposalCommonResp> result = new ArrayList<>();
         for (Proposal proposal : proposals) {
             ProposalCommonResp resp = new ProposalCommonResp();
+            resp.setId(proposal.getId());
             resp.setProposerTeamId(proposal.getProposerTeamId());
             resp.setProposerTeamName(teamMap.get(proposal.getProposerTeamId()).getLeaderName());
             resp.setInvolvedTeamIds(
