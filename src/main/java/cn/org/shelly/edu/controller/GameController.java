@@ -183,7 +183,7 @@ public class GameController {
         return Result.success();
     }
     @PostMapping("/special/fortress/settle")
-    @Operation(summary = "结算决斗要塞结果")
+    @Operation(summary = "结算决斗要塞结果(已弃用)")
     public Result<Void> settleFortressBattle(@RequestBody FortressBattleReq req) {
         try {
             gameService.settleFortressBattle(req);

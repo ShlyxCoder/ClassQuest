@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.org.shelly.edu.mapper.ProposalMapper">
+
+    <resultMap id="BaseResultMap" type="cn.org.shelly.edu.model.pojo.Proposal">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="round" column="round" jdbcType="INTEGER"/>
+            <result property="proposerTeamId" column="proposer_team_id" jdbcType="BIGINT"/>
+            <result property="electedScore" column="elected_score" jdbcType="INTEGER"/>
+            <result property="involvedTeams" column="involved_teams" jdbcType="VARCHAR"/>
+            <result property="scoreDistribution" column="score_distribution" jdbcType="VARCHAR"/>
+            <result property="selected" column="selected" jdbcType="TINYINT"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+        <result property="gameId" column="game_id" jdbcType="BIGINT"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,round,proposer_team_id,
+        elected_score,involved_teams,score_distribution,
+        selected,create_time,update_time,game_id
+    </sql>
+</mapper>

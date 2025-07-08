@@ -27,4 +27,13 @@ public class TileOccupyReq {
 
     @Schema(description = "触发黄金中心的格子ID")
     private Integer goldCenterTileId;
+
+    @Schema(description = "是否触发机会宝地")
+    private Boolean triggerChanceLand;
+
+    @Schema(description = "触发机会宝地的格子ID")
+    private Integer chanceLandTileId;
+
+    @Schema(description = "机会宝地挑战是否成功")
+    private Boolean challengeSuccess;
 }

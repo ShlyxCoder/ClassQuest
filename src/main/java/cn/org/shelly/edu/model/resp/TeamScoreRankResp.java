@@ -18,4 +18,7 @@ public class TeamScoreRankResp {
 
     @Schema(description = "小组内最晚提交时间")
     private LocalDateTime submitTime;
+
+    @Schema(description = "小组是否淘汰")
+    private Boolean eliminated;
 }

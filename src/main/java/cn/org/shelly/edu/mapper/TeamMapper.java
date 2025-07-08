@@ -1,6 +1,10 @@
 package cn.org.shelly.edu.mapper;
 import cn.org.shelly.edu.model.pojo.Team;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * @author Shelly6
@@ -9,6 +13,11 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @Entity cn/org/shelly/edu/model/pojo.domain.Team
 */
 public interface TeamMapper extends BaseMapper<Team> {
+
+    int updateProposalScoreByCompositeKey(Team team);
+
+
+    int updateAliveByCompositeKey(Team team);
 
 }
 

@@ -18,6 +18,7 @@
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>
             <result property="alive" column="alive" jdbcType="TINYINT"/>
+        <result property="eliminatedTime" column="eliminated_time" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <sql id="Base_Column_List">
@@ -25,6 +26,22 @@
         leader_name,sno,total_members,
         member_score_sum ,board_score_adjusted,proposal_score_imported,
         proposal_score_adjusted,gmt_create,gmt_update,
-        alive
+        alive,eliminated_time
     </sql>
+    <update id="updateProposalScoreByCompositeKey" parameterType="cn.org.shelly.edu.model.pojo.Team">
+        UPDATE team
+        SET proposal_score_imported = #{proposalScoreImported},
+            gmt_update = NOW()
+        WHERE id = #{id} AND game_id = #{gameId}
+    </update>
+    <update id="updateAliveByCompositeKey" parameterType="cn.org.shelly.edu.model.pojo.Team">
+        UPDATE team
+        SET alive = #{alive},
+            eliminated_time = #{eliminatedTime},
+            gmt_update = NOW()
+        WHERE id = #{id} AND game_id = #{gameId}
+    </update>
+
+
+
 </mapper>

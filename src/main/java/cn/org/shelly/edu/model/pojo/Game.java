@@ -78,21 +78,21 @@ public class Game implements Serializable {
     private Integer chessPhase;
 
     /**
-     * 当前提案阶段（1~3）
+     * 提案阶段 0-初始化提案积分 1-选择提案提出轮次 2-每轮提出提案 3-投票 4-正式游戏
      */
     @TableField(value = "proposal_stage")
-    @Schema(description = "提案阶段（1~3）")
+    @Schema(description = "提案阶段（0-初始化提案积分 1-选择提案提出轮次 2-每轮提出提案 3-投票 4-正式游戏）")
     private Integer proposalStage;
 
     /**
      * 当前提案阶段内的轮次
      */
     @TableField(value = "proposal_round")
-    @Schema(description = "当前提案阶段内的轮次")
+    @Schema(description = "提案赛轮次")
     private Integer proposalRound;
 
     /**
-     * 游戏状态：1-进行中，2-已结束，3-已暂停
+     * 游戏状态：1-进行中，2-已结束
      */
     @TableField(value = "status")
     @Schema(description = "游戏状态：1-进行中，2-已结束")

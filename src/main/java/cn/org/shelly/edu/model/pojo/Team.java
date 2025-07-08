@@ -72,6 +72,10 @@ public class Team implements Serializable {
     @Schema(description = "是否存活（0：淘汰，1：存活）")
     private Integer alive;
 
+    @TableField(value = "eliminated_time")
+    @Schema(description = "淘汰时间")
+    private Date eliminatedTime;
+
     @TableField(exist = false)
     @Serial
     private static final long serialVersionUID = 1L;
