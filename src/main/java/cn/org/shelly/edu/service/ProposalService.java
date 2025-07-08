@@ -49,4 +49,6 @@ public interface ProposalService extends IService<Proposal> {
     List<ProposalRoundTeamScoreResp> settleThirdRoundBuzzCompetition(Long gameId);
 
     List<ProposalCommonResp> proposalList(Long gameId, Integer round);
+
+    void adjustGlobalScore(ProposalScoreAdjustReq req);
 }

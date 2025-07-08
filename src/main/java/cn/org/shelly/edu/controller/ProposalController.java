@@ -120,4 +120,11 @@ public class ProposalController {
         return Result.success(proposalService.settleThirdRoundBuzzCompetition(gameId));
     }
 
+    @PutMapping("/score")
+    @Operation(summary = "修正整体提案赛小组得分")
+    public Result<Void> adjustScore(@RequestBody @Validated ProposalScoreAdjustReq req) {
+        proposalService.adjustGlobalScore(req);
+        return Result.success();
+    }
+
 }

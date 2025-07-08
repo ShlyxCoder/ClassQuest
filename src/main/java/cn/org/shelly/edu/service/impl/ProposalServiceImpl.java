@@ -1172,6 +1172,25 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
 
     }
 
+    @Override
+    public void adjustGlobalScore(ProposalScoreAdjustReq req) {
+        Game game = gameService.getById(req.getGameId());
+        if (game == null || game.getStage() != 2) {
+            throw new CustomException("游戏状态异常");
+        }
+        Team team = teamService.lambdaQuery()
+                .eq(Team::getGameId, req.getGameId())
+                .eq(Team::getId, req.getTeamId())
+                .one();
+        if (team == null) {
+            throw new CustomException("小组不存在");
+        }
+        team.setProposalScoreImported(req.getScore() + team.getProposalScoreImported());
+        teamMapper.updateProposalScoreByCompositeKey(team);
+        log.info("【管理员手动调整提案赛分数】gameId={}, teamId={}, score={}", req.getGameId(), req.getTeamId(), req.getScore());
+        // 日志记录
+    }
+
 
     private int parseScore(String raw) {
         try {
