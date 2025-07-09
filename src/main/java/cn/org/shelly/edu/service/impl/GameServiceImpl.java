@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -97,27 +98,25 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         game.setStage(1);
         game.setLastSavedAt(new Date());
         updateById(game);
-        // 7. 返回本轮小组得分排名列表
-        // 2. 构造得分日志列表
+        // 8. 构造得分日志列表
         List<TeamScoreLog> logs = rankList.stream().map(item -> {
             TeamScoreLog log = new TeamScoreLog();
             log.setGameId(gameId);
             log.setTeamId(item.getTeamId());
             log.setScore(item.getThisRoundScore());
-            log.setReason(3); // 表示学习通导入
-            log.setPhase(1);  // 棋盘赛
+            log.setReason(3);
+            log.setPhase(1);
             log.setRound(game.getChessRound());
-            log.setComment("棋盘赛从学习通导入成绩");
+            log.setComment("该积分是棋盘赛从学习通导入成绩获得");
             log.setSubmitTime(item.getSubmitTime());
             return log;
         }).toList();
-        // 3. 批量插入日志
+        // 9. 批量插入日志
         teamScoreLogService.saveBatch(logs);
         // 获取所有学生信息，或许可以放入异步？
         List<TeamMember> members = teamMemberService.lambdaQuery()
                 .eq(TeamMember::getGameId, gameId)
                 .list();
-      // 构建 SNO -> TeamMember 映射
         Map<String, TeamMember> memberMap = members.stream()
                 .collect(Collectors.toMap(TeamMember::getSno, m -> m, (a, b) -> a));
         threadPoolTaskExecutor.execute(() -> {
@@ -125,7 +124,6 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     .map(dto -> {
                         TeamMember member = memberMap.get(dto.getSno());
                         if (member == null) {
-                            // 可选：记录日志或忽略
                             return null;
                         }
                         StudentScoreLog log = new StudentScoreLog();
@@ -136,7 +134,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                         log.setReason(3);
                         log.setPhase(1);
                         log.setRound(game.getChessRound());
-                        log.setComment("棋盘赛从学习通导入成绩");
+                        log.setComment("第" + game.getChessRound() + "轮棋盘赛学习通导入中获得成绩，满分40分，实际得分为" + dto.getScore() + "分");
                         return log;
                     })
                     .filter(Objects::nonNull)
@@ -149,7 +147,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         try {
             return Integer.parseInt(raw.trim());
         } catch (Exception e) {
-            return 0; // 或抛异常/记录警告
+            return 0;
         }
     }
 
@@ -178,6 +176,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         }
         teamTileActionService.saveBatch(teamTileActions);
         game.setChessPhase(2);
+        game.setLastSavedAt(new java.util.Date());
         updateById(game);
     }
 
@@ -200,6 +199,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         log.info("未选择的小组：{}", unselectedMap.keySet());
         if (unselectedMap.isEmpty()) {
             game.setChessPhase(3);
+            game.setLastSavedAt(new java.util.Date());
             updateById(game);
             return Collections.emptyList();
         }
@@ -346,17 +346,16 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 .eq(TeamTileAction::getGameId, game.getId())
                 .eq(TeamTileAction::getSelected, 1)
                 .list();
-        // 按 teamId 聚合 totalTile（结算后剩余格子数）
         Map<Long, Integer> teamToTotalTile = new HashMap<>();
         for (TeamTileAction action : actions) {
             int settledCount = Optional.ofNullable(action.getSettledTileCount()).orElse(0);
             teamToTotalTile.merge(action.getTeamId(), settledCount, Integer::sum);
         }
-        // 查询游戏所有小组
+
         List<Team> teams = teamService.lambdaQuery()
                 .eq(Team::getGameId, game.getId())
                 .list();
-        // 组装返回结果
+
         List<TeamRankResp> rankList = new ArrayList<>();
         for (Team team : teams) {
             TeamRankResp resp = new TeamRankResp();
@@ -367,7 +366,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             resp.setLeaderSno(team.getSno());
             rankList.add(resp);
         }
-        // 按总领地数降序排序（可根据需求调整排序规则）
+        // 按总领地数降序排序
         rankList.sort(Comparator.comparingInt(TeamRankResp::getTotalTile).reversed()
                 .thenComparing(Comparator.comparingInt(TeamRankResp::getTotalScore).reversed()));
         return rankList;
@@ -417,14 +416,14 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         resp.setTotalTiles(config.getTotalTiles());
         resp.setBlackSwampTiles(blackSwampTiles);
 
-        // ✳ 盲盒格子排序输出：eventType: 0（2个），1（1个），2（1个）
+        // 盲盒格子排序输出：eventType: 0（2个），1（1个），2（1个）
         List<Integer> sortedBlindBox = blindBoxTiles.stream()
                 .sorted(Comparator.comparingInt(BoardInitReq.BlindBoxTile::getEventType))
                 .map(BoardInitReq.BlindBoxTile::getTileId)
                 .toList();
         resp.setBlindBoxTiles(sortedBlindBox);
 
-        // ✳ 决斗要塞格子排序输出：gameType: 0（2个），1（2个）
+        // 决斗要塞格子排序输出：gameType: 0（2个），1（2个）
         List<Integer> sortedFortress = fortressTiles.stream()
                 .sorted(Comparator.comparingInt(BoardInitReq.FortressTile::getGameType))
                 .map(BoardInitReq.FortressTile::getTileId)
@@ -434,7 +433,6 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         resp.setGoldCenterTiles(goldCenterTiles);
         resp.setOpportunityTiles(opportunityTiles);
 
-        // 小组占领格子封装
         List<TeamTileResp> teamResp = teamTilesMap.entrySet().stream()
                 .map(entry -> {
                     TeamTileResp team = new TeamTileResp();
@@ -470,14 +468,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
 
         for (TeamTileAction action : actions) {
             List<SpecialTileResp> specialList = new ArrayList<>();
-            // 盲盒秘境
             try {
                 List<BoardInitReq.BlindBoxTile> blindBoxTiles =
                         mapper.readValue(action.getBlindBoxTiles(), new TypeReference<>() {});
                 for (BoardInitReq.BlindBoxTile tile : blindBoxTiles) {
                     SpecialTileResp resp = new SpecialTileResp();
                     resp.setTileId(tile.getTileId());
-                    resp.setTileType(1); // 盲盒
+                    resp.setTileType(1);
                     resp.setEventType(tile.getEventType());
                     resp.setEventName(tile.getEventType() == 1 ? "图片论述" : "五词对抗");
                     specialList.add(resp);
@@ -486,14 +483,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 log.error("获取特殊格子列表失败", ignored);
             }
 
-            // 决斗要塞
             try {
                 List<BoardInitReq.FortressTile> fortressTiles =
                         mapper.readValue(action.getFortressTiles(), new TypeReference<>() {});
                 for (BoardInitReq.FortressTile tile : fortressTiles) {
                     SpecialTileResp resp = new SpecialTileResp();
                     resp.setTileId(tile.getTileId());
-                    resp.setTileType(2); // 要塞
+                    resp.setTileType(2);
                     resp.setEventType(tile.getGameType());
                     resp.setEventName(tile.getGameType() == 0 ? "双音节成语" : "成语抢答");
                     specialList.add(resp);
@@ -501,15 +497,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             } catch (Exception ignored) {
                 log.error("获取游戏{}的黄金中心格子信息失败", gameId);
             }
-
-            // 黄金中心
             try {
                 List<Integer> goldCenter =
                         mapper.readValue(action.getGoldCenterTiles(), new TypeReference<>() {});
                 for (Integer tileId : goldCenter) {
                     SpecialTileResp resp = new SpecialTileResp();
                     resp.setTileId(tileId);
-                    resp.setTileType(3); // 黄金中心
+                    resp.setTileType(3);
                     resp.setEventType(null);
                     resp.setEventName("黄金中心");
                     specialList.add(resp);
@@ -517,15 +511,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             } catch (Exception ignored) {
                 log.error("获取黄金中心格子信息失败", ignored);
             }
-
-            // 机会宝地
             try {
                 List<Integer> opportunity =
                         mapper.readValue(action.getOpportunityTiles(), new TypeReference<>() {});
                 for (Integer tileId : opportunity) {
                     SpecialTileResp resp = new SpecialTileResp();
                     resp.setTileId(tileId);
-                    resp.setTileType(4); // 机会宝地
+                    resp.setTileType(4);
                     resp.setEventType(null);
                     resp.setEventName("机会宝地");
                     specialList.add(resp);
@@ -650,7 +642,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         if (!req.getInvolvedTeamIds().contains(req.getWinnerTeamId())) {
             throw new CustomException("胜利方不在参与队伍中");
         }
-        // 1. 移除盲盒格子（从发起方移除）
+        // 1. 移除盲盒格子
         try {
             removeTileFromTeamAction(req.getGameId(), req.getTeamId(), game.getChessRound(), req.getTileId(), "blindBox");
         } catch (JsonProcessingException e) {
@@ -675,7 +667,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             removeTilesFromTeamActions(loserActions, tiles);
             teamTileActionService.updateBatchById(loserActions);
         }
-        // 4. 加给胜者（胜者最新一轮）
+        // 4. 加给胜者
         addTilesToWinnerAction(req.getGameId(), req.getWinnerTeamId(), toTransfer.stream().map(TileWithSource::tileId).toList());
     }
 
@@ -1007,11 +999,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 }
             }
         }
-        // 排序
         resultList.sort(Comparator.comparingInt(TeamScoreRankResp::getThisRoundScore).reversed()
                 .thenComparing(TeamScoreRankResp::getSubmitTime));
-
-        // 批量更新成员分数（Java 循环方式）
         if (!updateList.isEmpty()) {
             for (ScoreUpdateDTO dto : updateList) {
                 teamMemberMapper.addScore(dto.getSno(), game.getId(), dto.getAddScore());
@@ -1019,6 +1008,31 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         }
 
         return resultList;
+    }
+
+    @Override
+    public void addComment(CommentReq req) {
+        Game game = getById(req.getGameId());
+        if(game == null){
+            throw new CustomException("未找到游戏信息");
+        }
+        TeamMember member = teamMemberService.lambdaQuery()
+                .eq(TeamMember::getGameId, req.getGameId())
+                .eq(TeamMember::getStudentId, req.getStudentId())
+                .one();
+        if(member == null){
+            throw new CustomException("未找到学生信息");
+        }
+        StudentScoreLog studentScoreLog = new StudentScoreLog();
+        studentScoreLog.setStudentId(member.getStudentId());
+        studentScoreLog.setTeamId(member.getTeamId());
+        studentScoreLog.setGameId(req.getGameId());
+        studentScoreLog.setScore(0);
+        studentScoreLog.setReason(4);
+        studentScoreLog.setPhase(game.getStage());
+        studentScoreLog.setRound(game.getChessRound());
+        studentScoreLog.setComment(req.getComment());
+        studentScoreLogService.save(studentScoreLog);
     }
 
 

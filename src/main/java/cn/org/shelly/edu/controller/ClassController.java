@@ -117,20 +117,16 @@ public class ClassController {
         if (ids == null || ids.isEmpty()) {
             return Result.fail("删除失败，ID 列表为空");
         }
-        // 获取任意一个学生所属的班级 ID（假设所有学生都属于同一个班级）
         ClassStudent any = classStudentService.getById(ids.get(0));
         if (any == null) {
             return Result.fail("找不到对应学生");
         }
         Long cid = any.getCid();
-        // 删除学生
         boolean removed = classStudentService.removeByIds(ids);
         if (removed) {
-            // 查询剩余学生数
             long studentCount = classStudentService.lambdaQuery()
                     .eq(ClassStudent::getCid, cid)
                     .count();
-            // 更新班级中的学生数
             classService.lambdaUpdate()
                     .eq(Classes::getId, cid)
                     .set(Classes::getCurrentStudents, studentCount)
@@ -142,7 +138,6 @@ public class ClassController {
     @PutMapping("/student")
     @Operation(summary = "更新学生")
     public Result<Void> updateStudent(@Validated @RequestBody UploadSingleStudentReq req) {
-        // 判断是否有相同学号+姓名+班级，但不是当前记录
         Long duplicateCount = classStudentService.lambdaQuery()
                 .eq(ClassStudent::getSno, req.getSno())
                 .eq(ClassStudent::getName, req.getName())
@@ -152,7 +147,6 @@ public class ClassController {
         if (duplicateCount > 0) {
             return Result.fail("该学生信息已存在，请勿重复添加");
         }
-        // 更新学生记录
         ClassStudent po = new ClassStudent()
                 .setId(req.getId())
                 .setCid(req.getCid())

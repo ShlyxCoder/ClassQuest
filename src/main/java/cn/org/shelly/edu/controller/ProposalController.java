@@ -114,7 +114,7 @@ public class ProposalController {
         return Result.success();
     }
 
-    @PostMapping("/settle")
+    @GetMapping("/settle")
     @Operation(summary = "结算第三轮抢答赛")
     public Result<List<ProposalRoundTeamScoreResp>> settleThirdRoundBuzzCompetition(@RequestParam Long gameId) {
         return Result.success(proposalService.settleThirdRoundBuzzCompetition(gameId));
@@ -125,6 +125,12 @@ public class ProposalController {
     public Result<Void> adjustScore(@RequestBody @Validated ProposalScoreAdjustReq req) {
         proposalService.adjustGlobalScore(req);
         return Result.success();
+    }
+
+    @GetMapping("/second/need")
+    @Operation(summary = "查询第二轮提案赛需要打分的小组")
+    public Result<List<Long>> listNeedScore(@RequestParam Long gameId) {
+        return Result.success(proposalService.listNeedScore(gameId));
     }
 
 }

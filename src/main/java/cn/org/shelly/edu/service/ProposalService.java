@@ -50,4 +50,6 @@ public interface ProposalService extends IService<Proposal> {
     List<ProposalCommonResp> proposalList(Long gameId, Integer round);
 
     void adjustGlobalScore(ProposalScoreAdjustReq req);
+
+    List<Long> listNeedScore(Long gameId);
 }

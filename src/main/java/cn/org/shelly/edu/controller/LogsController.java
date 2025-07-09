@@ -66,30 +66,71 @@ public class LogsController {
         );
     }
 
-    @GetMapping(value = "/stream")
-    @Operation(summary = "流式对话")
-    public Flux<String> chatStream(@RequestParam String message) {
-        String prompt = "你是一名经验丰富、语气中肯又不失亲切感的老师助手，现在你将根据学生的得分日志，对学生进行简要分析与评价。请注意：\n" +
-                "\n" +
-                "1. **角色定位**：你是一名老师，语言风格需要具备教师特有的温和、理性与指导性，避免冷冰冰或刻意夸张。\n" +
-                "2. **分析维度**包括：\n" +
-                "   - 本轮成绩（是否进步、是否退步）\n" +
-                "   - 与前几轮成绩的对比（有无明显趋势）\n" +
-                "   - 在组内或全体中的相对排名（如提供了）\n" +
-                "   - 总体表现是否稳定\n" +
-                "   - 是否存在爆发/掉队等异常情况\n" +
-                "3. **评价风格**需中肯有逻辑，避免无根据夸赞或贬低；可以适度鼓励、提出建议。\n" +
-                "4. **输出格式**：\n" +
-                "   - 一段自然语言的文字评价，长度约50~100字；\n" +
-                "   - 不要输出代码、表格或条目，直接输出完整评价语句即可。\n" +
-                "\n" +
-                "下面是一个学生的得分日志数据：\n" +
-                "\n" +
-                "{{ 填入学生得分数据（JSON 或结构化文本） }}\n" +
-                "\n" +
-                "请根据上述要求，生成一段中肯、带教师口吻的文字评价。\n";
-        return chatClient.prompt(new Prompt(List.of( new SystemMessage(prompt),new UserMessage(message))))
-                .stream()
-                .content();
+    @GetMapping("/stream")
+    @Operation(summary = "老师助手对话接口")
+    public Flux<String> chatStream(@RequestParam(required = false) Long studentId,
+                                   @RequestParam(required = false) Long gameId,
+                                   @RequestParam(required = false) String message,
+                                   @RequestParam(defaultValue = "0")@Schema(description = "0=普通对话模式(默认)，1=学生画像分析模式") Integer type) {
+        if (type == 0) {
+            if (message == null || message.isBlank()) {
+                return Flux.just("普通对话模式下，必须传入 message 参数。");
+            }
+            String prompt = "你是一位有经验、语气温和、逻辑清晰的老师，现在以老师身份回答老师提出的问题，请使用简洁清晰的语言作答。";
+            return chatClient.prompt(new Prompt(List.of(
+                    new SystemMessage(prompt),
+                    new UserMessage(message)
+            ))).stream().content();
+        }
+
+        if (type == 1) {
+            if (studentId == null || gameId == null) {
+                return Flux.just("画像模式下，必须传入 studentId 和 gameId。");
+            }
+            List<StudentScoreLog> logs = studentScoreLogService.lambdaQuery()
+                    .eq(StudentScoreLog::getStudentId, studentId)
+                    .eq(StudentScoreLog::getGameId, gameId)
+                    .orderByAsc(StudentScoreLog::getGmtCreate)
+                    .list();
+            if (logs.isEmpty()) {
+                return Flux.just("未找到该学生在该游戏中的得分记录。");
+            }
+            StringBuilder promptBuilder = new StringBuilder();
+            promptBuilder.append("你是一名经验丰富、语气中肯温和的老师助理，请根据以下学生的得分记录和老师备注，生成一段50~100字的综合评价。记录既包括数字成绩，也包括老师的描述性点评：\n\n");
+            promptBuilder.append("学生得分日志如下：\n");
+
+            for (StudentScoreLog log : logs) {
+                promptBuilder.append(formatLogForPrompt(log)).append("\n");
+            }
+            promptBuilder.append("\n请基于这些记录，生成自然语言评价。不使用条目、不输出代码。");
+            return chatClient.prompt(new Prompt(List.of(
+                    new SystemMessage(promptBuilder.toString()),
+                    new UserMessage("请生成评价。")
+            ))).stream().content();
+        }
+        return Flux.just("不支持的 type 类型。请传入 0（普通对话）或 1（学生画像）");
     }
+    private String formatLogForPrompt(StudentScoreLog log) {
+        String round = log.getRound() != null ? "第" + log.getRound() + "轮" : "未知轮次";
+        String phase = switch (log.getPhase()) {
+            case 1 -> "棋盘赛";
+            case 2 -> "提案赛";
+            default -> "未知阶段";
+        };
+        String reason = switch (log.getReason()) {
+            case 1 -> "老师加分";
+            case 2 -> "老师扣分";
+            case 3 -> "学习通导入成绩";
+            case 4 -> "描述性记录";
+            default -> "其他操作";
+        };
+        StringBuilder sb = new StringBuilder();
+        sb.append("- ").append(round).append(" ").append(phase).append("：")
+                .append(reason).append("，得分 ").append(log.getScore());
+        if (log.getComment() != null && !log.getComment().isBlank()) {
+            sb.append("，备注：").append(log.getComment());
+        }
+        return sb.toString();
+    }
+
 }

@@ -53,7 +53,7 @@ public class StudentScoreLog implements Serializable {
      * 得分原因
      */
     @TableField(value = "reason")
-    @Schema(description = "得分原因(1：老师加分，2：老师扣分，3：学习通导入成绩)")
+    @Schema(description = "得分原因(1：老师加分，2：老师扣分，3：学习通导入成绩，4：描述性记录)")
     private Integer reason;
 
     /**

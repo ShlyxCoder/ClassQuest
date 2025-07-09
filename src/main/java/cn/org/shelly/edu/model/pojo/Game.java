@@ -60,7 +60,7 @@ public class Game implements Serializable {
      * 当前赛段：1-棋盘赛，2-提案赛，0-未初始化阶段
      */
     @TableField(value = "stage")
-    @Schema(description = "当前赛段：0-未初始化阶段 1-棋盘赛，2-提案赛，")
+    @Schema(description = "当前赛段：0-未初始化阶段 1-棋盘赛，2-提案赛，3-封盘")
     private Integer stage;
 
     /**

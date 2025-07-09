@@ -10,7 +10,6 @@ import cn.org.shelly.edu.model.pojo.*;
 import cn.org.shelly.edu.model.req.*;
 import cn.org.shelly.edu.model.resp.*;
 import cn.org.shelly.edu.service.*;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
@@ -80,6 +79,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         }
 
         // 标记提案赛进入下一阶段
+        game.setLastSavedAt(new Date());
         game.setProposalStage(1);
         boolean gameUpdated = gameService.updateById(game);
         if (!gameUpdated) {
@@ -150,13 +150,13 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 proposals.add(p);
             }
         }
-        // 批量插入
         boolean inserted = saveBatch(proposals);
         if (!inserted) {
             throw new CustomException("提案初始化失败");
         }
         game.setProposalStage(2);
         game.setProposalRound(1);
+        game.setLastSavedAt(new Date());
         gameService.updateById(game);
     }
 
@@ -208,7 +208,6 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 throw new CustomException("第 " + (i + 1) + " 个提案的积分分配总和不是 28，而是 " + sum);
             }
         }
-        // 查询当前轮次所有提案
         List<Proposal> existingList = lambdaQuery()
                 .eq(Proposal::getGameId, gameId)
                 .eq(Proposal::getRound, round)
@@ -227,9 +226,9 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             existing.setUpdateTime(now);
             updateList.add(existing);
         }
-        // 批量更新
         this.updateBatchById(updateList);
         game.setProposalStage(3);
+        game.setLastSavedAt(new Date());
         gameService.updateById(game);
     }
 
@@ -247,14 +246,6 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             throw new CustomException("请求参数不完整");
         }
         int round = game.getProposalRound();
-        // 查询已淘汰小组
-        List<Long> eliminatedTeamIds = teamService.lambdaQuery()
-                .eq(Team::getGameId, gameId)
-                .eq(Team::getAlive, 0)
-                .list()
-                .stream()
-                .map(Team::getId)
-                .toList();
         // 校验每个提案
         for (int i = 0; i < proposals.size(); i++) {
             ProposalSecondSubmitReq.SecondSingleProposal p = proposals.get(i);
@@ -268,15 +259,6 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             }
             if (proTeamIds.size() != requiredTeamCount) {
                 throw new CustomException("第 " + (i + 1) + " 个提案正反方小组数量应为 " + requiredTeamCount);
-            }
-            // 检查是否包含已淘汰小组
-            List<Long> all = new ArrayList<>();
-            all.addAll(proTeamIds);
-            all.addAll(conTeamIds);
-            for (Long teamId : all) {
-                if (eliminatedTeamIds.contains(teamId)) {
-                    throw new CustomException("第 " + (i + 1) + " 个提案中包含已淘汰小组，ID 为 " + teamId);
-                }
             }
         }
         // 查询当前轮次提案
@@ -301,6 +283,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         }
         this.updateBatchById(updateList);
         game.setProposalStage(3);
+        game.setLastSavedAt(new Date());
         gameService.updateById(game);
     }
 
@@ -310,7 +293,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
     public void uploadThird(ProposalThirdSubmitReq req) {
         Long gameId = req.getGameId();
         Game game = gameService.getById(gameId);
-        if (game == null || game.getStage() != 2 || game.getProposalStage() != 3 || game.getProposalRound() != 3) {
+        if (game == null || game.getStage() != 2 || game.getProposalStage() != 2 || game.getProposalRound() != 3) {
             throw new CustomException("游戏状态异常");
         }
 
@@ -321,25 +304,12 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         }
 
         int round = game.getProposalRound();
-        // 查询已淘汰小组
-        List<Long> eliminatedTeamIds = teamService.lambdaQuery()
-                .eq(Team::getGameId, gameId)
-                .eq(Team::getAlive, 0)
-                .list()
-                .stream()
-                .map(Team::getId)
-                .toList();
         // 校验提案内容
         for (int i = 0; i < proposals.size(); i++) {
             ProposalThirdSubmitReq.SingleProposal p = proposals.get(i);
             List<Long> involvedTeamIds = p.getInvolvedTeamIds();
             if (involvedTeamIds == null || involvedTeamIds.size() != requiredTeamCount) {
                 throw new CustomException("第 " + (i + 1) + " 个提案的参与小组数量应为 " + requiredTeamCount);
-            }
-            for (Long teamId : involvedTeamIds) {
-                if (eliminatedTeamIds.contains(teamId)) {
-                    throw new CustomException("第 " + (i + 1) + " 个提案中包含已淘汰小组，ID 为 " + teamId);
-                }
             }
         }
         // 查询当前轮次提案
@@ -367,6 +337,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         }
         this.updateBatchById(updateList);
         game.setProposalStage(3);
+        game.setLastSavedAt(new Date());
         gameService.updateById(game);
     }
 
@@ -391,7 +362,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 })
                 .sorted(Comparator.comparingInt(ProposalTeamStatusResp::getScore).reversed())
                 .toList();
-        // 设置排名（并列分数可考虑处理为并列排名）
+        // 设置排名
         int rank = 1;
         for (int i = 0; i < resultList.size(); i++) {
             if (i > 0 && resultList.get(i).getScore().equals(resultList.get(i - 1).getScore())) {
@@ -519,6 +490,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             resp.setLeaderName(proposerTeam.getLeaderName());
         }
         game.setProposalStage(4);
+        game.setLastSavedAt(new Date());
         gameService.updateById(game);
         return resp;
     }
@@ -680,9 +652,9 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                         log.setGameId(gameId);
                         log.setScore(parseScore(dto.getScore()));
                         log.setReason(3);
-                        log.setPhase(1);
+                        log.setPhase(2);
                         log.setRound(game.getChessRound());
-                        log.setComment("提案赛从学习通导入成绩");
+                        log.setComment("第" + game.getChessRound() + "轮提案赛中获得成绩，实际得分为" + dto.getScore() + "分（来源：学习通）");
                         return log;
                     })
                     .filter(Objects::nonNull)
@@ -883,7 +855,6 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
             if (a.getOutTime() == null && b.getOutTime() != null) return 1;
             if (a.getOutTime() != null && b.getOutTime() == null) return -1;
             if (a.getOutTime() == null) return 0;
-            // 正确的：按淘汰时间降序，淘汰越晚的排前面
             return b.getOutTime().compareTo(a.getOutTime());
         });
         // 3. 淘汰的排名从存活之后开始排
@@ -1029,7 +1000,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                     return r;
                 })
                 .sorted(Comparator.comparingInt(ProposalRoundTeamScoreResp::getScore).reversed())
-                .collect(Collectors.toList());
+                .toList();
         // 计算排名，处理并列
         int rank = 0, realRank = 0, prevScore = Integer.MIN_VALUE;
         for (ProposalRoundTeamScoreResp r : respList) {
@@ -1097,26 +1068,22 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         for (ProposalRoundTeamScore score : scoreLogs) {
             teamScoreMap.merge(score.getTeamId(), Optional.ofNullable(score.getScore()).orElse(0), Integer::sum);
         }
-
         // 排名排序
         List<Map.Entry<Long, Integer>> sortedEntries = teamScoreMap.entrySet().stream()
                 .sorted(Map.Entry.<Long, Integer>comparingByValue().reversed())
                 .toList();
-
         // 排名分数规则
         Map<Integer, Integer> rankScoreMap = Map.of(
                 1, 10,
                 2, 8,
                 3, 6
         );
-
         // 查询小组信息
         List<Team> teams = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
                 .in(Team::getId, involvedTeamIds)
                 .list();
         Map<Long, Team> teamMap = teams.stream().collect(Collectors.toMap(Team::getId, t -> t));
-
         // 执行加分，组装返回对象
         List<ProposalRoundTeamScoreResp> respList = new ArrayList<>();
         int rank = 0;
@@ -1149,10 +1116,11 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
             r.setRank(rank);
             respList.add(r);
         }
-
-        // 日志记录
         log.info("【抢答赛结算完成】gameId={}, 前三名结果={}", gameId, respList.stream().limit(3).toList());
-
+        game.setStage(3);
+        game.setStatus(2);
+        game.setLastSavedAt(new Date());
+        gameService.updateById(game);
         return respList.stream().limit(3).toList();
     }
 
@@ -1214,7 +1182,34 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         team.setProposalScoreImported(req.getScore() + team.getProposalScoreImported());
         teamMapper.updateProposalScoreByCompositeKey(team);
         log.info("【管理员手动调整提案赛分数】gameId={}, teamId={}, score={}", req.getGameId(), req.getTeamId(), req.getScore());
-        // 日志记录
+    }
+
+    @Override
+    public List<Long> listNeedScore(Long gameId) {
+        Game game = gameService.getById(gameId);
+        if (game == null || game.getStage() != 2) {
+            throw new CustomException("游戏状态异常");
+        }
+        List<Long> teamIds = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .toList();
+        Set<Long> involvedTeamIds = lambdaQuery()
+                .eq(Proposal::getGameId, gameId)
+                .eq(Proposal::getRound, 2)
+                .eq(Proposal::getSelected, 1)
+                .select(Proposal::getInvolvedTeams)
+                .list()
+                .stream()
+                .map(Proposal::getInvolvedTeams)
+                .filter(str -> str != null && !str.isBlank())
+                .flatMap(str -> Arrays.stream(str.split(",")).map(String::trim).map(Long::valueOf))
+                .collect(Collectors.toSet());
+        return teamIds.stream()
+                .filter(id -> !involvedTeamIds.contains(id))
+                .toList();
     }
 
 

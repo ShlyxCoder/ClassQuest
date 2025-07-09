@@ -146,7 +146,7 @@ public class TeamController {
             return tm;
         }).toList();
         teamMemberService.saveBatch(newMembers);
-        // 5. 更新 team 主表（
+        // 5. 更新 team 主表
         team.setLeaderId(req.getLeaderId());
         team.setLeaderName(idToName.get(req.getLeaderId()).getName());
         team.setTotalMembers(req.getMemberIds().size());

@@ -1,5 +1,6 @@
 package cn.org.shelly.edu.controller;
 
+import cn.org.shelly.edu.annotation.ScoreLogComment;
 import cn.org.shelly.edu.common.Result;
 import cn.org.shelly.edu.exception.CustomException;
 import cn.org.shelly.edu.model.pojo.*;
@@ -135,6 +136,7 @@ public class GameController {
 
 
     @PostMapping("/upload/chess")
+    @ScoreLogComment
     @Operation(summary = "上传棋盘赛学习通成绩")
     public Result<List<TeamScoreRankResp>> uploadChessResult(@RequestPart("file") MultipartFile file,
                                                              @RequestParam Long gameId) {
@@ -219,6 +221,12 @@ public class GameController {
     @Operation(summary = "棋盘赛老师操作积分变更")
     public Result<Void> updateScore(@RequestBody ScoreUpdateReq req) {
         gameService.updateScore(req);
+        return Result.success();
+    }
+    @PostMapping("/comment")
+    @Operation(summary = "全局添加评论接口")
+    public Result<Void> addComment(@RequestBody CommentReq req) {
+        gameService.addComment(req);
         return Result.success();
     }
 

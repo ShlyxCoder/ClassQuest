@@ -51,4 +51,6 @@ public interface GameService extends IService<Game> {
             Map<Long, List<XxtStudentScoreExcelDTO>> groupMap,
             Game game,
             Map<Long, Team> teamMap);
+
+    void addComment(CommentReq req);
 }
