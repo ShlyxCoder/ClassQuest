@@ -3,14 +3,17 @@ package cn.org.shelly.edu.controller;
 import cn.org.shelly.edu.common.PageInfo;
 import cn.org.shelly.edu.common.Result;
 import cn.org.shelly.edu.model.pojo.StudentScoreLog;
+import cn.org.shelly.edu.model.pojo.TeamMember;
 import cn.org.shelly.edu.model.pojo.TeamScoreLog;
 import cn.org.shelly.edu.service.StudentScoreLogService;
+import cn.org.shelly.edu.service.TeamMemberService;
 import cn.org.shelly.edu.service.TeamScoreLogService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -31,6 +34,7 @@ public class LogsController {
     private final TeamScoreLogService teamScoreLogService;
     private final StudentScoreLogService studentScoreLogService;
     private final ChatClient chatClient;
+    private final TeamMemberService teamMemberService;
     @GetMapping("/team/list")
     @Operation(summary = "查看小组得分日志列表")
     public Result<PageInfo<TeamScoreLog>> getTeamScoreLogs(
@@ -68,7 +72,7 @@ public class LogsController {
 
     @GetMapping("/stream")
     @Operation(summary = "老师助手对话接口")
-    public Flux<String> chatStream(@RequestParam(required = false) Long studentId,
+    public Flux<String> chatStream(@RequestParam(required = false) String sno,
                                    @RequestParam(required = false) Long gameId,
                                    @RequestParam(required = false) String message,
                                    @RequestParam(defaultValue = "0")@Schema(description = "0=普通对话模式(默认)，1=学生画像分析模式") Integer type) {
@@ -84,8 +88,17 @@ public class LogsController {
         }
 
         if (type == 1) {
-            if (studentId == null || gameId == null) {
+            if (StringUtils.isBlank(sno) || gameId == null) {
                 return Flux.just("画像模式下，必须传入 studentId 和 gameId。");
+            }
+            Long studentId = teamMemberService.lambdaQuery()
+                    .eq(TeamMember::getSno, sno)
+                    .eq(TeamMember::getGameId, gameId)
+                    .oneOpt()
+                    .map(TeamMember::getStudentId)
+                    .orElse(null);
+            if (studentId == null) {
+                return Flux.just("未找到该学生。");
             }
             List<StudentScoreLog> logs = studentScoreLogService.lambdaQuery()
                     .eq(StudentScoreLog::getStudentId, studentId)

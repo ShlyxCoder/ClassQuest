@@ -344,7 +344,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
     @Override
     public List<ProposalTeamStatusResp> getProposalAllOrder(Long gameId) {
         Game game = gameService.getById(gameId);
-        if (game == null || game.getStage() != 2) {
+        if (game == null || (game.getStage() != 2 && game.getStage() != 3)) {
             throw new CustomException("游戏状态异常");
         }
         List<Team> teams = teamService.lambdaQuery()
@@ -599,7 +599,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 resp.setTeamName(team.getLeaderName());
                 resp.setThisRoundScore(thisRoundScore);
                 resp.setSubmitTime(latestTime);
-                resp.setEliminated(team.getAlive() == 0);
+                resp.setStatus(team.getAlive());
                 resultList.add(resp);
             }
             // 收集成员得分，用于批量更新
@@ -619,7 +619,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         }
         // 排序
         resultList.sort(
-                Comparator.comparing(TeamScoreRankResp::getEliminated)
+                Comparator.comparing(TeamScoreRankResp::getStatus)
                         .thenComparing(TeamScoreRankResp::getThisRoundScore, Comparator.reverseOrder())
                         .thenComparing(TeamScoreRankResp::getSubmitTime)
         );
