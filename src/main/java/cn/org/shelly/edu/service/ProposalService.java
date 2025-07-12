@@ -52,4 +52,6 @@ public interface ProposalService extends IService<Proposal> {
     void adjustGlobalScore(ProposalScoreAdjustReq req);
 
     List<Long> listNeedScore(Long gameId);
+
+    List<Long> scoreList(Long gameId , Integer type);
 }

@@ -69,7 +69,7 @@ public class Team implements Serializable {
     private Date gmtUpdate;
 
     @TableField(value = "alive")
-    @Schema(description = "是否存活（-1：未参与 0：淘汰，1：存活）")
+    @Schema(description = "存活状态（-1：未参与 0：提案赛暂时淘汰，1：存活，2：棋盘赛淘汰）")
     private Integer alive;
 
     @TableField(value = "eliminated_time")

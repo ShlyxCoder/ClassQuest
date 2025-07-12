@@ -133,6 +133,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new CustomException("用户不存在");
         }
         User po = UserReq.toUserPo(param);
+        log.info("更新用户信息：{}", po);
         po.setUsername(old.getUsername());
         po.setPassword(old.getPassword());
         po.setEmail(old.getEmail());

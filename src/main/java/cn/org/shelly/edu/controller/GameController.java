@@ -230,6 +230,13 @@ public class GameController {
         return Result.success();
     }
 
+    @PutMapping("/outTeam")
+    @Operation(summary = "棋盘赛结算淘汰小组")
+    public Result<Void> outTeam(@RequestBody OutReq req) {
+        gameService.outTeam(req);
+        return Result.success();
+    }
+
 
 
 }

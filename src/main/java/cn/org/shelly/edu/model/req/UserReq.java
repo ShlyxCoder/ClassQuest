@@ -25,6 +25,7 @@ public class UserReq {
 
     public static User toUserPo(UserReq req) {
         return new User()
+                .setId(req.getId())
                 .setUsername(req.getEmail())
                 .setNickname(req.getNickname())
                 .setAvatar(req.getAvatar())

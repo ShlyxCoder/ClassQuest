@@ -364,6 +364,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             resp.setTotalScore(Optional.ofNullable(team.getMemberScoreSum()).orElse(0));
             resp.setTotalTile(teamToTotalTile.getOrDefault(team.getId(), 0));
             resp.setLeaderSno(team.getSno());
+            resp.setStatus(team.getAlive());
             rankList.add(resp);
         }
         // 按总领地数降序排序
@@ -804,8 +805,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 allTiles.add(new TileWithSource(tile, action.getId()));
             }
         }
-        int count = allTiles.size() / 2;
-        return allTiles.subList(0, count);
+        int start = allTiles.size() / 2;
+        return allTiles.subList(start, allTiles.size());
     }
 
     private void removeTileFromTeamAction(Long gameId, Long teamId, Integer round, Integer tileId, String type) throws JsonProcessingException {
@@ -1033,6 +1034,24 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         studentScoreLog.setRound(game.getChessRound());
         studentScoreLog.setComment(req.getComment());
         studentScoreLogService.save(studentScoreLog);
+    }
+
+    @Override
+    public void outTeam(OutReq req) {
+        Game game = getById(req.getGameId());
+        if(game.getStage() < 2 || game.getProposalStage() > 2){
+            throw new CustomException("当前不允许淘汰队伍");
+        }
+        if(req.getType() < 1 || req.getType() > 2){
+            throw new CustomException("type参数错误");
+        }
+        for(Long id : req.getTeamIds()){
+            teamService.lambdaUpdate()
+                    .eq(Team::getGameId, req.getGameId())
+                    .eq(Team::getId, id)
+                    .set(Team::getAlive,req.getType())
+                    .update();
+        }
     }
 
 

@@ -1,10 +1,12 @@
 package cn.org.shelly.edu.controller;
 
 import cn.org.shelly.edu.common.Result;
+import cn.org.shelly.edu.exception.CustomException;
 import cn.org.shelly.edu.model.req.*;
 import cn.org.shelly.edu.model.resp.*;
 import cn.org.shelly.edu.service.ProposalService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +24,15 @@ import java.util.List;
 public class ProposalController {
     private final ProposalService proposalService;
 
+    @GetMapping("/init/list")
+    @Operation(summary = "查询提案赛真淘汰小组列表")
+    public Result<List<Long>> teamList(@RequestParam Long gameId,
+                                   @RequestParam @Schema(description = "1升序 2积分序") Integer sort) {
+        if(sort <1 || sort >2){
+            throw new CustomException("排序参数错误");
+        }
+        return Result.success(proposalService.scoreList(gameId,  sort));
+    }
     @PostMapping("/init")
     @Operation(summary = "初始化提案赛")
     public Result<ProposalInitResp> init(@RequestBody List<ProposalInitReq> req){

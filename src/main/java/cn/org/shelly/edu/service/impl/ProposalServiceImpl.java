@@ -57,8 +57,9 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         }
         List<Team> teams = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
+                .ne(Team::getAlive,2)
                 .list();
-        if (teams == null || teams.size() != game.getTeamCount()) {
+        if (teams == null || teams.size() != req.size()) {
             throw new CustomException("小组数量异常，无法初始化");
         }
         // 构造 teamId -> Team 映射
@@ -115,6 +116,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
 
         List<Team> teams = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
+                .ne(Team::getAlive,2)
                 .list();
         Set<Long> allTeamIds = teams.stream().map(Team::getId).collect(Collectors.toSet());
         // 合并全部上传的小组 ID
@@ -191,6 +193,12 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         if (gameId == null || requiredTeamCount == null || proposals == null || proposals.isEmpty()) {
             throw new CustomException("请求参数不完整");
         }
+        List<ProposalFirstSubmitReq.FirstSingleProposal> list = req.getProposals();
+        for(ProposalFirstSubmitReq.FirstSingleProposal p : list){
+            if(!p.getInvolvedTeamIds().contains(p.getProposerTeamId())){
+                throw new CustomException("提案小组ID " + p.getProposerTeamId() + " 不在参与小组中");
+            }
+        }
         int round = game.getProposalRound();
         for (int i = 0; i < proposals.size(); i++) {
             ProposalFirstSubmitReq.FirstSingleProposal p = proposals.get(i);
@@ -232,6 +240,8 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         gameService.updateById(game);
     }
 
+
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void uploadSecond(ProposalSecondSubmitReq req) {
@@ -244,6 +254,12 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         List<ProposalSecondSubmitReq.SecondSingleProposal> proposals = req.getProposals();
         if (gameId == null || requiredTeamCount == null || proposals == null || proposals.isEmpty()) {
             throw new CustomException("请求参数不完整");
+        }
+        List<ProposalSecondSubmitReq.SecondSingleProposal> list = req.getProposals();
+        for(ProposalSecondSubmitReq.SecondSingleProposal p : list){
+            if(!p.getProTeamIds().contains(p.getProposerTeamId()) && !p.getConTeamIds().contains(p.getProposerTeamId())){
+                throw new CustomException("提案小组ID " + p.getProposerTeamId() + " 不在参与小组中");
+            }
         }
         int round = game.getProposalRound();
         // 校验每个提案
@@ -302,7 +318,12 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         if (gameId == null || requiredTeamCount == null || proposals == null || proposals.isEmpty()) {
             throw new CustomException("请求参数不完整");
         }
-
+        List<ProposalThirdSubmitReq.SingleProposal> list = req.getProposals();
+        for(ProposalThirdSubmitReq.SingleProposal p : list){
+            if(!p.getInvolvedTeamIds().contains(p.getProposerTeamId())){
+                throw new CustomException("提案小组ID " + p.getProposerTeamId() + " 不在参与小组中");
+            }
+        }
         int round = game.getProposalRound();
         // 校验提案内容
         for (int i = 0; i < proposals.size(); i++) {
@@ -372,7 +393,16 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             }
             rank++;
         }
-        return resultList;
+        Set<Long> outTeamIds = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .eq(Team::getAlive, 2)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .collect(Collectors.toSet());
+        return resultList.stream()
+                .filter(resp -> !outTeamIds.contains(resp.getTeamId()))
+                .toList();
     }
 
     @Override
@@ -399,6 +429,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         // 获取所有小组
         Map<Long, Team> teamMap = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
+                .ne(Team::getAlive, 2)
                 .list()
                 .stream()
                 .collect(Collectors.toMap(Team::getId, Function.identity()));
@@ -661,7 +692,17 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                     .toList();
             studentScoreLogService.saveBatch(studentLogs);
         });
-        return resultList;
+        Set<Long> outTeamIds = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .eq(Team::getAlive, 2)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .collect(Collectors.toSet());
+        return resultList.stream()
+                .filter(resp -> !outTeamIds.contains(resp.getTeamId()))
+                .toList();
+
     }
 
 @Override
@@ -866,7 +907,17 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         result.addAll(aliveList);
         result.addAll(outList);
         result.addAll(unjoinedList);
-        return result;
+        Set<Long> outTeamIds = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .eq(Team::getAlive, 2)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .collect(Collectors.toSet());
+        return result.stream()
+                .filter(resp -> !outTeamIds.contains(resp.getTeamId()))
+                .toList();
+
     }
 
 
@@ -1011,7 +1062,18 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
             }
             r.setRank(rank);
         }
-        return respList;
+        Set<Long> outTeamIds = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .eq(Team::getAlive, 2)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .collect(Collectors.toSet());
+
+        return respList.stream()
+                .filter(resp -> !outTeamIds.contains(resp.getTeamId()))
+                .toList();
+
     }
 
     @Override
@@ -1121,7 +1183,14 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         game.setStatus(2);
         game.setLastSavedAt(new Date());
         gameService.updateById(game);
-        return respList.stream().limit(3).toList();
+        Set<Long> outTeamIds = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .eq(Team::getAlive, 2)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .collect(Collectors.toSet());
+        return respList.stream().filter(resp -> !outTeamIds.contains(resp.getTeamId())).limit(3).toList();
     }
 
     @Override
@@ -1192,6 +1261,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         }
         List<Long> teamIds = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
+                .ne(Team::getAlive, 2)
                 .list()
                 .stream()
                 .map(Team::getId)
@@ -1209,6 +1279,35 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .collect(Collectors.toSet());
         return teamIds.stream()
                 .filter(id -> !involvedTeamIds.contains(id))
+                .toList();
+    }
+
+    @Override
+    public List<Long> scoreList(Long gameId, Integer type) {
+        Game game = gameService.getById(gameId);
+        if (game == null || game.getStage() != 2) {
+            throw new CustomException("游戏状态异常");
+        }
+        List<Long> all = gameService.getTeamRank(game)
+                .stream()
+                .map(TeamRankResp::getTeamId)
+                .toList();
+        var valid = teamService.lambdaQuery()
+                .eq(Team::getGameId, gameId)
+                .select(Team::getId)
+                .eq(Team::getAlive,2)
+                .list()
+                .stream()
+                .map(Team::getId)
+                .toList();
+        if(type == 1){
+            return all.stream()
+                    .filter(valid::contains)
+                    .sorted()
+                    .toList();
+        }
+        return all.stream()
+                .filter(valid::contains)
                 .toList();
     }
 

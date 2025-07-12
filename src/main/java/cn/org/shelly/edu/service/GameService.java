@@ -53,4 +53,6 @@ public interface GameService extends IService<Game> {
             Map<Long, Team> teamMap);
 
     void addComment(CommentReq req);
+
+    void outTeam(OutReq req);
 }
