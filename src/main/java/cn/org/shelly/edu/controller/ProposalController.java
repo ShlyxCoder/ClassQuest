@@ -144,4 +144,9 @@ public class ProposalController {
         return Result.success(proposalService.listNeedScore(gameId));
     }
 
+    @GetMapping("/detail")
+    @Operation(summary = "查询某一个提案内容详情")
+    public Result<ProposalDetailResp> getDetail(@RequestParam Long proposalId) {
+        return Result.success(proposalService.getDetail(proposalId));
+    }
 }

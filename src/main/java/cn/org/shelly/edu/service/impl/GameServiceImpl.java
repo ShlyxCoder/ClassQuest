@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.formula.functions.T;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -170,6 +169,12 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             teamTileAction.setTeamId(entry.getKey());
             teamTileAction.setRound(game.getChessRound());
             teamTileAction.setPhase(1);
+            if(entry.getValue() == 0){
+                teamTileAction.setPhase(2);
+            }
+            else{
+                teamTileAction.setPhase(1);
+            }
             teamTileAction.setOriginalTileCount(entry.getValue());
             teamTileAction.setSelected(0);
             teamTileActions.add(teamTileAction);
@@ -193,6 +198,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 .eq(TeamTileAction::getGameId, gameId)
                 .eq(TeamTileAction::getRound, game.getChessRound())
                 .eq(TeamTileAction::getSelected, 0)
+                .ne(TeamTileAction::getOriginalTileCount,0)
                 .list()
                 .stream()
                 .collect(Collectors.toMap(TeamTileAction::getTeamId, action -> action));
@@ -264,6 +270,27 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             throw new CustomException("游戏配置不存在");
         }
 
+        List<Integer> selectedTiles = req.getTileIds();
+        if (selectedTiles == null || selectedTiles.isEmpty()) {
+            Integer count = teamTileActionService.lambdaQuery()
+                    .eq(TeamTileAction::getGameId, req.getGameId())
+                    .eq(TeamTileAction::getTeamId, req.getTeamId())
+                    .eq(TeamTileAction::getRound, game.getChessRound())
+                    .eq(TeamTileAction::getSelected, 0)
+                    .one()
+                    .getOriginalTileCount();
+            if(count > 0){
+                throw new CustomException("请选择格子");
+            }
+           teamTileActionService.lambdaUpdate()
+                   .eq(TeamTileAction::getGameId, req.getGameId())
+                   .eq(TeamTileAction::getTeamId, req.getTeamId())
+                   .eq(TeamTileAction::getRound, game.getChessRound())
+                   .set(TeamTileAction::getSelected, 1)
+                   .set(TeamTileAction::getSettledTileCount,0)
+                   .update();
+           return true;
+        }
         ObjectMapper objectMapper = new ObjectMapper();
         List<BoardInitReq.BlindBoxTile> blindBoxTilesList = objectMapper
                 .readValue(config.getBlindBoxTiles(), new TypeReference<>() {});
@@ -274,10 +301,6 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         Set<Integer> opportunitySet = objectMapper
                 .readValue(config.getOpportunityTiles(), new TypeReference<>() {});
 
-        List<Integer> selectedTiles = req.getTileIds();
-        if (selectedTiles == null || selectedTiles.isEmpty()) {
-            throw new CustomException("请选择至少一个格子");
-        }
         if (Boolean.TRUE.equals(req.getTriggerChanceLand())
                 && (req.getChanceLandTileId() == null || !opportunitySet.contains(req.getChanceLandTileId()))) {
             throw new CustomException("触发的机会宝地格子不存在");

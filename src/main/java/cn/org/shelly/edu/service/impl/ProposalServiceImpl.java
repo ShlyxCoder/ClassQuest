@@ -480,11 +480,18 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 .getKey();
         Integer winnerScore = proposalScoreMap.get(winnerProposalId);
         Proposal winnerProposal = proposalMap.get(winnerProposalId);
-        // 更新提案状态
-        winnerProposal.setElectedScore(winnerScore);
-        winnerProposal.setSelected(1);
-        this.updateById(winnerProposal);
-
+        List<Proposal> proposalsToUpdate = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : proposalScoreMap.entrySet()) {
+            Long proposalId = entry.getKey();
+            Integer score = entry.getValue();
+            Proposal proposal = proposalMap.get(proposalId);
+            if (proposal != null) {
+                proposal.setElectedScore(score);
+                proposal.setSelected(proposalId.equals(winnerProposalId) ? 1 : 0);
+                proposalsToUpdate.add(proposal);
+            }
+        }
+        this.updateBatchById(proposalsToUpdate);
         if (round == 1 && winnerProposal.getInvolvedTeams() != null) {
             Set<Long> involvedTeamIds = Arrays.stream(winnerProposal.getInvolvedTeams().split(","))
                     .map(Long::valueOf)
@@ -1214,6 +1221,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
             ProposalCommonResp resp = new ProposalCommonResp();
             resp.setId(proposal.getId());
             resp.setProposerTeamId(proposal.getProposerTeamId());
+            resp.setVoteCount(proposal.getElectedScore());
             resp.setProposerTeamName(teamMap.get(proposal.getProposerTeamId()).getLeaderName());
             resp.setInvolvedTeamIds(
                     Optional.ofNullable(proposal.getInvolvedTeams())
@@ -1309,6 +1317,32 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         return all.stream()
                 .filter(valid::contains)
                 .toList();
+    }
+
+    @Override
+    public ProposalDetailResp getDetail(Long proposalId) {
+        Proposal proposal = lambdaQuery()
+                .eq(Proposal::getId, proposalId)
+                .one();
+        ProposalDetailResp resp = new ProposalDetailResp();
+        resp.setVoteCount(proposal.getElectedScore());
+        resp.setRound(proposal.getRound());
+        resp.setId(proposal.getId());
+        resp.setTeamId(proposal.getProposerTeamId());
+        resp.setTeamName(teamService.lambdaQuery()
+                .eq(Team::getId, proposal.getProposerTeamId())
+                .eq(Team::getGameId, proposal.getGameId())
+                .one()
+                .getLeaderName());
+        resp.setInvolvedTeamIds(Arrays.stream(proposal.getInvolvedTeams().split(","))
+                .map(Long::valueOf)
+                .toList());
+        if (proposal.getScoreDistribution() != null) {
+            resp.setScoreDistribution(Arrays.stream(proposal.getScoreDistribution().split(","))
+                    .map(Integer::valueOf)
+                    .toList());
+        }
+        return resp;
     }
 
 

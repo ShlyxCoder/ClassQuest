@@ -54,4 +54,6 @@ public interface ProposalService extends IService<Proposal> {
     List<Long> listNeedScore(Long gameId);
 
     List<Long> scoreList(Long gameId , Integer type);
+
+    ProposalDetailResp getDetail(Long proposalId);
 }
