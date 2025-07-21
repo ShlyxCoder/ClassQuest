@@ -124,7 +124,8 @@
 如有问题或需要支持，请联系：
 * **邮箱**: 40505282@qq.com
 
-**前端代码仓库：** 本项目前后端分离，前端代码由另一位同事维护。  
-点击访问前端代码：[https://github.com/OuterCyrex/digital-edu-platform.git](https://github.com/OuterCyrex/digital-edu-platform.git)
+**前端代码仓库说明：** 本项目前后端分离，前端代码由另一位同事维护，  
+**地址：** [https://github.com/OuterCyrex/digital-edu-platform.git](https://github.com/OuterCyrex/digital-edu-platform.git)
+
 ---
 *用游戏化的方式，构建互动教育的未来* 🎓✨
