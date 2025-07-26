@@ -48,6 +48,7 @@ public class ClassServiceImpl extends ServiceImpl<ClassMapper, Classes>
                     .count();
             Classes classes = getById(id);
             classes.setCurrentStudents(Math.toIntExact(count));
+            updateById(classes);
             return new UploadResultResp(listener.getSuccessCount(), listener.getFailCount());
         } catch (IOException e) {
             throw new CustomException("文件读取失败");

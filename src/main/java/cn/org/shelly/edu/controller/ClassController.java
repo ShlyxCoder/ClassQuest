@@ -54,6 +54,9 @@ public class ClassController {
     @Operation(summary = "删除班级")
     public Result<Void> delete(@PathVariable("id") Long id){
         classService.removeById(id);
+        classStudentService.lambdaUpdate()
+                .eq(ClassStudent::getCid, id)
+                .remove();
         return Result.success();
     }
     @GetMapping("/{id:\\d+}")
