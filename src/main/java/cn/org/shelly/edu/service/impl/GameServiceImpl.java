@@ -751,7 +751,11 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             } else if (stage == 2) {
                 team.setProposalScoreAdjusted(team.getProposalScoreAdjusted() + num);
             }
-            teamService.updateById(team);
+            //teamService.updateById(team);
+            teamService.lambdaUpdate()
+                    .eq(Team::getId, team.getId())
+                    .eq(Team::getGameId, gameId)
+                    .update(team);
             teamScoreLogService.save(TeamScoreLog.createLog(team.getId(), gameId, num, stage, game.getChessRound(), comment));
         } else {
             // === 个人加分 ===
@@ -776,7 +780,11 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
 
             int totalScore = members.stream().mapToInt(TeamMember::getIndividualScore).sum();
             team.setMemberScoreSum(totalScore);
-            teamService.updateById(team);
+            //teamService.updateById(team);
+            teamService.lambdaUpdate()
+                    .eq(Team::getId, team.getId())
+                    .eq(Team::getGameId, gameId)
+                    .update(team);
             studentScoreLogService.save(StudentScoreLog.createLog(member.getStudentId(), teamId, gameId, num, stage, game.getChessRound(), comment));
         }
     }
