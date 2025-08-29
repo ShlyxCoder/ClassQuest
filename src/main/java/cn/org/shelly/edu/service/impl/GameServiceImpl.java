@@ -751,7 +751,6 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             } else if (stage == 2) {
                 team.setProposalScoreAdjusted(team.getProposalScoreAdjusted() + num);
             }
-            //teamService.updateById(team);
             teamService.lambdaUpdate()
                     .eq(Team::getId, team.getId())
                     .eq(Team::getGameId, gameId)
@@ -759,12 +758,15 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             teamScoreLogService.save(TeamScoreLog.createLog(team.getId(), gameId, num, stage, game.getChessRound(), comment));
         } else {
             // === 个人加分 ===
-            TeamMember member = Optional.ofNullable(teamMemberService.getById(id))
+            TeamMember member = Optional.ofNullable(teamMemberService.lambdaQuery().eq(TeamMember::getStudentId, id).one())
                     .orElseThrow(() -> new CustomException("成员不存在"));
-
+            log.info("member: {}", member);
             member.setIndividualScore(member.getIndividualScore() + num);
-            teamMemberService.updateById(member);
-
+            log.info("member: {}", member);
+            teamMemberService.lambdaUpdate()
+                    .eq(TeamMember::getStudentId, member.getStudentId())
+                    .eq(TeamMember::getGameId, gameId)
+                    .update(member);
             Long teamId = member.getTeamId();
             Team team = Optional.ofNullable(teamService.lambdaQuery()
                     .eq(Team::getId, teamId)
@@ -774,13 +776,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             int maxCount = game.getTeamMemberCount();
             List<TeamMember> members = teamMemberService.lambdaQuery()
                     .eq(TeamMember::getTeamId, teamId)
+                    .eq(TeamMember::getGameId, gameId)
                     .orderByDesc(TeamMember::getIndividualScore)
                     .last("LIMIT " + maxCount)
                     .list();
 
             int totalScore = members.stream().mapToInt(TeamMember::getIndividualScore).sum();
             team.setMemberScoreSum(totalScore);
-            //teamService.updateById(team);
             teamService.lambdaUpdate()
                     .eq(Team::getId, team.getId())
                     .eq(Team::getGameId, gameId)
