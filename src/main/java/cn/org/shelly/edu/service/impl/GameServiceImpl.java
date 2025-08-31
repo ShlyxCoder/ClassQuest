@@ -758,7 +758,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             teamScoreLogService.save(TeamScoreLog.createLog(team.getId(), gameId, num, stage, game.getChessRound(), comment));
         } else {
             // === 个人加分 ===
-            TeamMember member = Optional.ofNullable(teamMemberService.lambdaQuery().eq(TeamMember::getStudentId, id).one())
+            TeamMember member = Optional.ofNullable(teamMemberService.lambdaQuery().eq(TeamMember::getStudentId, id).eq(TeamMember::getGameId, gameId).one())
                     .orElseThrow(() -> new CustomException("成员不存在"));
             log.info("member: {}", member);
             member.setIndividualScore(member.getIndividualScore() + num);
