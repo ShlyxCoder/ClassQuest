@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Date;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -54,7 +55,7 @@ public class Team implements Serializable {
 
     @TableField(value = "proposal_score_imported")
     @Schema(description = "提案赛 - 系统计算总分")
-    private Integer proposalScoreImported;
+    private BigDecimal proposalScoreImported;
 
     @TableField(value = "proposal_score_adjusted")
     @Schema(description = "提案赛 - 老师手动调整分数")

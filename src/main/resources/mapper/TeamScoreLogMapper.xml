@@ -8,7 +8,7 @@
             <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="teamId" column="team_id" jdbcType="BIGINT"/>
             <result property="gameId" column="game_id" jdbcType="BIGINT"/>
-            <result property="score" column="score" jdbcType="INTEGER"/>
+            <result property="score" column="score" jdbcType="DECIMAL"/>
             <result property="reason" column="reason" jdbcType="TINYINT"/>
             <result property="round" column="round" jdbcType="INTEGER"/>
             <result property="phase" column="phase" jdbcType="TINYINT"/>

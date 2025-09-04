@@ -20,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 
-
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -374,8 +375,12 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
         // 构造响应列表并计算总分
         List<ProposalTeamStatusResp> resultList = teams.stream()
                 .map(team -> {
-                    int totalScore = (team.getProposalScoreImported() == null ? 0 : team.getProposalScoreImported())
-                            + (team.getProposalScoreAdjusted() == null ? 0 : team.getProposalScoreAdjusted());
+                    int totalScore = (team.getProposalScoreImported() != null
+                            ? team.getProposalScoreImported().intValue()
+                            : 0)
+                            + (team.getProposalScoreAdjusted() != null
+                            ? team.getProposalScoreAdjusted()
+                            : 0);
                     return new ProposalTeamStatusResp()
                             .setTeamId(team.getId())
                             .setName(team.getLeaderName())
@@ -461,11 +466,14 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
 
             // 从投票小组扣分
             Team fromTeam = teamMap.get(fromTeamId);
-            int beforeScore = fromTeam.getProposalScoreImported() == null ? 0 : fromTeam.getProposalScoreImported();
-            if (beforeScore < score) {
+            BigDecimal beforeScore = fromTeam.getProposalScoreImported() != null
+                    ? fromTeam.getProposalScoreImported()
+                    : BigDecimal.ZERO;
+
+            if (beforeScore.compareTo(BigDecimal.valueOf(score)) < 0) {
                 throw new CustomException("小组【" + fromTeam.getLeaderName() + "】积分不足");
             }
-            fromTeam.setProposalScoreImported(beforeScore - score);
+            fromTeam.setProposalScoreImported(beforeScore.subtract(BigDecimal.valueOf(score)));
             // 被投小组累计得分
             proposalScoreMap.merge(toProposalId, score, Integer::sum);
         }
@@ -584,7 +592,6 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                 .eq(Team::getGameId, gameId)
                 .list().stream().collect(Collectors.toMap(Team::getId, t -> t));
         // 5. 计算本轮小组得分，更新累计得分，并生成排行榜响应
-        int maxCount = game.getTeamMemberCount();
         List<TeamScoreRankResp> resultList = new ArrayList<>();
         List<ScoreUpdateDTO> updateList = new ArrayList<>();
         List<ProposalRoundTeamScore> teamScoreList = new ArrayList<>();
@@ -607,8 +614,8 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             teamScore.setTeamId(teamId);
             teamScore.setRound(game.getProposalRound());
             teamScore.setSubRound(round+1);
-            // 计算 topN 分数总和
-            List<Integer> topScores = teamScores.stream()
+            // 所有成员成绩取平均值
+            List<Integer> allScores = teamScores.stream()
                     .map(dto -> {
                         try {
                             return Integer.parseInt(dto.getScore());
@@ -616,10 +623,16 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                             return 0;
                         }
                     })
-                    .sorted(Comparator.reverseOrder())
-                    .limit(maxCount)
                     .toList();
-            int thisRoundScore = topScores.stream().mapToInt(Integer::intValue).sum();
+
+            BigDecimal thisRoundScore = BigDecimal.ZERO;
+            if (!allScores.isEmpty()) {
+                double avg = allScores.stream()
+                        .mapToInt(Integer::intValue)
+                        .average()
+                        .orElse(0.0);
+                thisRoundScore = BigDecimal.valueOf(avg).setScale(2, RoundingMode.HALF_UP);
+            }
             // 获取最新提交时间
             LocalDateTime latestTime = teamScores.stream()
                     .map(XxtStudentScoreExcelDTO::getTime)
@@ -824,15 +837,19 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
             Team team = teamMap.get(teamId);
             if (team == null) continue;
 
-            int before = Optional.ofNullable(team.getProposalScoreImported()).orElse(0);
-            team.setProposalScoreImported(before + addScore);
+            BigDecimal before = team.getProposalScoreImported() != null
+                    ? team.getProposalScoreImported()
+                    : BigDecimal.ZERO;
+
+            team.setProposalScoreImported(before.add(BigDecimal.valueOf(addScore)));
+
             updateList.add(team);
 
             ProposalFirstSettleResp.ScoreDetail detail = new ProposalFirstSettleResp.ScoreDetail();
             detail.setTeamId(teamId);
             detail.setLeaderName(team.getLeaderName());
             detail.setAddScore(addScore);
-            detail.setFinalScore(before + addScore);
+            detail.setFinalScore(before.intValue() + addScore);
             resultDetails.add(detail);
         }
 
@@ -991,16 +1008,20 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .list()
                 .stream()
                 .collect(Collectors.toMap(Team::getId, team -> team));
-        int bonus = 8;
+        BigDecimal bonus = BigDecimal.valueOf(8);
         List<Team> updateList = new ArrayList<>();
+
         for (Integer teamId : ids) {
             Team team = teamMap.get(teamId.longValue());
             if (team != null) {
-                Integer oldScore = team.getProposalScoreImported();
-                team.setProposalScoreImported((oldScore != null ? oldScore : 0) + bonus);
+                BigDecimal oldScore = team.getProposalScoreImported() != null
+                        ? team.getProposalScoreImported()
+                        : BigDecimal.ZERO;
+                team.setProposalScoreImported(oldScore.add(bonus));
                 updateList.add(team);
             }
         }
+
         for(Team team : updateList){
             teamMapper.updateProposalScoreByCompositeKey(team);
         }
@@ -1035,7 +1056,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         // 按 teamId 分组累计分数，没日志的默认为0
         Map<Long, Integer> teamTotalScore = allScores.stream()
                 .collect(Collectors.groupingBy(ProposalRoundTeamScore::getTeamId,
-                        Collectors.summingInt(s -> s.getScore() != null ? s.getScore() : 0)));
+                        Collectors.summingInt(s -> s.getScore() != null ? s.getScore().intValue() : 0)));
 
         // 保证所有参赛小组都有记录，没有的补0
         for (Long tid : involvedTeamIds) {
@@ -1052,20 +1073,23 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .map(e -> {
                     ProposalRoundTeamScoreResp r = new ProposalRoundTeamScoreResp();
                     r.setTeamId(e.getKey());
-                    r.setScore(e.getValue());
+                    r.setScore(BigDecimal.valueOf(e.getValue()));
                     Team team = teamMap.get(e.getKey());
                     r.setLeaderName(team != null ? team.getLeaderName() : "未知");
                     return r;
                 })
-                .sorted(Comparator.comparingInt(ProposalRoundTeamScoreResp::getScore).reversed())
+                .sorted(Comparator.comparing(ProposalRoundTeamScoreResp::getScore).reversed())
                 .toList();
         // 计算排名，处理并列
-        int rank = 0, realRank = 0, prevScore = Integer.MIN_VALUE;
+        int rank = 0;
+        int realRank = 0;
+        BigDecimal prevScore = null;
         for (ProposalRoundTeamScoreResp r : respList) {
             realRank++;
-            if (!r.getScore().equals(prevScore)) {
+            BigDecimal score = r.getScore();
+            if (prevScore == null || score.compareTo(prevScore) != 0) {
                 rank = realRank;
-                prevScore = r.getScore();
+                prevScore = score;
             }
             r.setRank(rank);
         }
@@ -1081,6 +1105,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .filter(resp -> !outTeamIds.contains(resp.getTeamId()))
                 .toList();
 
+
     }
 
     @Override
@@ -1091,9 +1116,10 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
        }
         ProposalRoundTeamScore record = new ProposalRoundTeamScore();
         record.setGameId(req.getGameId());
-        record.setRound(3); // 第三轮固定
+        record.setRound(3);// 固定第三轮
+        record.setSubRound(-1);
         record.setTeamId(req.getTeamId());
-        record.setScore(req.getScore());
+        record.setScore(BigDecimal.valueOf(req.getScore()));
         record.setComment(req.getComment());
         proposalRoundTeamScoreService.save(record);
     }
@@ -1130,16 +1156,28 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .list();
 
         // 统计总分（无记录的视为0分）
-        Map<Long, Integer> teamScoreMap = new HashMap<>();
+        // 初始化队伍得分 Map，默认 0 分
+        Map<Long, BigDecimal> teamScoreMap = new HashMap<>();
         for (Long teamId : involvedTeamIds) {
-            teamScoreMap.put(teamId, 0); // 默认 0 分
+            teamScoreMap.put(teamId, BigDecimal.ZERO);
         }
+
+        // 累加每条成绩
         for (ProposalRoundTeamScore score : scoreLogs) {
-            teamScoreMap.merge(score.getTeamId(), Optional.ofNullable(score.getScore()).orElse(0), Integer::sum);
+            Long teamId = score.getTeamId();
+            BigDecimal thisScore = score.getScore() != null ? score.getScore() : BigDecimal.ZERO;
+
+            if (teamScoreMap.containsKey(teamId)) {
+                BigDecimal total = teamScoreMap.get(teamId);
+                teamScoreMap.put(teamId, total.add(thisScore));
+            } else {
+                teamScoreMap.put(teamId, thisScore);
+            }
         }
-        // 排名排序
-        List<Map.Entry<Long, Integer>> sortedEntries = teamScoreMap.entrySet().stream()
-                .sorted(Map.Entry.<Long, Integer>comparingByValue().reversed())
+
+        // 排名排序，按分数从高到低
+        List<Map.Entry<Long, BigDecimal>> sortedEntries = teamScoreMap.entrySet().stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                 .toList();
         // 排名分数规则
         Map<Integer, Integer> rankScoreMap = Map.of(
@@ -1154,42 +1192,42 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .list();
         Map<Long, Team> teamMap = teams.stream().collect(Collectors.toMap(Team::getId, t -> t));
         // 执行加分，组装返回对象
-        List<ProposalRoundTeamScoreResp> respList = new ArrayList<>();
+        BigDecimal prevScore = null;
         int rank = 0;
         int realRank = 0;
-        Integer prevScore = null;
-
-        for (int i = 0; i < sortedEntries.size(); i++) {
-            Map.Entry<Long, Integer> entry = sortedEntries.get(i);
+        List<ProposalRoundTeamScoreResp> respList = new ArrayList<>();
+        for (Map.Entry<Long, BigDecimal> entry : sortedEntries) {
             Long teamId = entry.getKey();
-            Integer buzzScore = entry.getValue();
-
+            BigDecimal buzzScore = entry.getValue(); // 当前队伍分数
             realRank++;
-            if (!Objects.equals(prevScore, buzzScore)) {
+            if (prevScore == null || prevScore.compareTo(buzzScore) != 0) {
                 rank = realRank;
                 prevScore = buzzScore;
             }
-
-            Integer addScore = rankScoreMap.getOrDefault(rank, 0);
-
+            int addScore = rankScoreMap.getOrDefault(rank, 0); // 排名对应分数仍然是整数
             Team team = teamMap.get(teamId);
             if (team == null) continue;
 
-            int before = Optional.ofNullable(team.getProposalScoreImported()).orElse(0);
-            team.setProposalScoreImported(before + addScore);
+            BigDecimal before = Optional.ofNullable(team.getProposalScoreImported())
+                    .orElse(BigDecimal.ZERO);
+            team.setProposalScoreImported(before.add(BigDecimal.valueOf(addScore))); // 累加分数
             teamMapper.updateProposalScoreByCompositeKey(team);
+
             ProposalRoundTeamScoreResp r = new ProposalRoundTeamScoreResp();
             r.setTeamId(teamId);
             r.setLeaderName(team.getLeaderName());
-            r.setScore(before + addScore);
+            r.setScore(before.add(BigDecimal.valueOf(addScore))); // 返回分数
             r.setRank(rank);
             respList.add(r);
         }
+
         log.info("【抢答赛结算完成】gameId={}, 前三名结果={}", gameId, respList.stream().limit(3).toList());
+
         game.setStage(3);
         game.setStatus(2);
         game.setLastSavedAt(new Date());
         gameService.updateById(game);
+
         Set<Long> outTeamIds = teamService.lambdaQuery()
                 .eq(Team::getGameId, gameId)
                 .eq(Team::getAlive, 2)
@@ -1197,7 +1235,12 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
                 .stream()
                 .map(Team::getId)
                 .collect(Collectors.toSet());
-        return respList.stream().filter(resp -> !outTeamIds.contains(resp.getTeamId())).limit(3).toList();
+
+        return respList.stream()
+                .filter(resp -> !outTeamIds.contains(resp.getTeamId()))
+                .limit(3)
+                .toList();
+
     }
 
     @Override
@@ -1256,7 +1299,7 @@ public ProposalFirstSettleResp outTeam(OutTeamReq req) {
         if (team == null) {
             throw new CustomException("小组不存在");
         }
-        team.setProposalScoreImported(req.getScore() + team.getProposalScoreImported());
+        team.setProposalScoreImported(BigDecimal.valueOf(req.getScore()).add(team.getProposalScoreImported()));
         teamMapper.updateProposalScoreByCompositeKey(team);
         log.info("【管理员手动调整提案赛分数】gameId={}, teamId={}, score={}", req.getGameId(), req.getTeamId(), req.getScore());
     }

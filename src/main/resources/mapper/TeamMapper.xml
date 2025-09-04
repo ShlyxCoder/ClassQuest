@@ -13,7 +13,7 @@
             <result property="totalMembers" column="total_members" jdbcType="INTEGER"/>
             <result property="memberScoreSum" column="board_score_imported" jdbcType="INTEGER"/>
             <result property="boardScoreAdjusted" column="board_score_adjusted" jdbcType="INTEGER"/>
-            <result property="proposalScoreImported" column="proposal_score_imported" jdbcType="INTEGER"/>
+            <result property="proposalScoreImported" column="proposal_score_imported" jdbcType="DECIMAL"/>
             <result property="proposalScoreAdjusted" column="proposal_score_adjusted" jdbcType="INTEGER"/>
             <result property="gmtCreate" column="gmt_create" jdbcType="TIMESTAMP"/>
             <result property="gmtUpdate" column="gmt_update" jdbcType="TIMESTAMP"/>

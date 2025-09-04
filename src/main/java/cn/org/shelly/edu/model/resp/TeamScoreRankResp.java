@@ -3,6 +3,7 @@ package cn.org.shelly.edu.model.resp;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -14,7 +15,7 @@ public class TeamScoreRankResp {
     private String teamName;
 
     @Schema(description = "本轮得分")
-    private Integer thisRoundScore;
+    private BigDecimal thisRoundScore;
 
     @Schema(description = "小组内最晚提交时间")
     private LocalDateTime submitTime;

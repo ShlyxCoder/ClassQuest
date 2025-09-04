@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -48,7 +49,7 @@ public class ProposalRoundTeamScore implements Serializable {
      * 该次子轮中的得分
      */
     @TableField(value = "score")
-    private Integer score;
+    private BigDecimal score;
 
     /**
      * 老师对该次表现的评语

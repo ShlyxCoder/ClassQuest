@@ -29,6 +29,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -503,8 +505,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     resp.setEventName(tile.getEventType() == 1 ? "图片论述" : "五词对抗");
                     specialList.add(resp);
                 }
-            } catch (Exception ignored) {
-                log.error("获取特殊格子列表失败", ignored);
+            } catch (Exception e) {
+                log.error("获取特殊格子列表失败", e);
             }
 
             try {
@@ -532,8 +534,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     resp.setEventName("黄金中心");
                     specialList.add(resp);
                 }
-            } catch (Exception ignored) {
-                log.error("获取黄金中心格子信息失败", ignored);
+            } catch (Exception e) {
+                log.error("获取黄金中心格子信息失败", e);
             }
             try {
                 List<Integer> opportunity =
@@ -546,8 +548,8 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     resp.setEventName("机会宝地");
                     specialList.add(resp);
                 }
-            } catch (Exception ignored) {
-                log.error("获取特殊格子列表失败", ignored);
+            } catch (Exception e) {
+                log.error("获取特殊格子列表失败", e);
             }
 
             if (!specialList.isEmpty()) {
@@ -755,7 +757,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     .eq(Team::getId, team.getId())
                     .eq(Team::getGameId, gameId)
                     .update(team);
-            teamScoreLogService.save(TeamScoreLog.createLog(team.getId(), gameId, num, stage, game.getChessRound(), comment));
+            teamScoreLogService.save(TeamScoreLog.createLog(team.getId(), gameId, BigDecimal.valueOf(num), stage, game.getChessRound(), comment));
         } else {
             // === 个人加分 ===
             TeamMember member = Optional.ofNullable(teamMemberService.lambdaQuery().eq(TeamMember::getStudentId, id).eq(TeamMember::getGameId, gameId).one())
@@ -973,26 +975,28 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             Map<Long, List<XxtStudentScoreExcelDTO>> groupMap,
             Game game,
             Map<Long, Team> teamMap) {
-        int maxCount = game.getTeamMemberCount();
         List<TeamScoreRankResp> resultList = new ArrayList<>();
         List<ScoreUpdateDTO> updateList = new ArrayList<>();
         for (Map.Entry<Long, List<XxtStudentScoreExcelDTO>> entry : groupMap.entrySet()) {
             Long teamId = entry.getKey();
             List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
-            // 计算 topN 分数总和
-            List<Integer> topScores = teamScores.stream()
+            // 计算本轮小组平均分
+            List<BigDecimal> scores = teamScores.stream()
                     .map(dto -> {
                         try {
-                            return Integer.parseInt(dto.getScore());
+                            return new BigDecimal(dto.getScore());
                         } catch (NumberFormatException e) {
-                            return 0;
+                            return BigDecimal.ZERO;
                         }
                     })
-                    .sorted(Comparator.reverseOrder())
-                    .limit(maxCount)
                     .toList();
 
-            int thisRoundScore = topScores.stream().mapToInt(Integer::intValue).sum();
+            BigDecimal thisRoundScore = BigDecimal.ZERO;
+            if (!scores.isEmpty()) {
+                BigDecimal sum = scores.stream()
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                thisRoundScore = sum.divide(new BigDecimal(scores.size()), 2, RoundingMode.HALF_UP);
+            }
 
             // 获取最新提交时间
             LocalDateTime latestTime = teamScores.stream()
@@ -1005,7 +1009,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             Team team = teamMap.get(teamId);
             if (team != null) {
                 int oldScore = Optional.ofNullable(team.getMemberScoreSum()).orElse(0);
-                team.setMemberScoreSum(oldScore + thisRoundScore);
+                team.setMemberScoreSum(oldScore + thisRoundScore.intValue());
                 // 更新数据库
                 teamService.lambdaUpdate()
                         .eq(Team::getId, team.getId())
@@ -1033,8 +1037,13 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                 }
             }
         }
-        resultList.sort(Comparator.comparingInt(TeamScoreRankResp::getThisRoundScore).reversed()
-                .thenComparing(TeamScoreRankResp::getSubmitTime));
+        resultList.sort(
+                Comparator.comparing(
+                                TeamScoreRankResp::getThisRoundScore,
+                                Comparator.nullsFirst(BigDecimal::compareTo)
+                        ).reversed()
+                        .thenComparing(TeamScoreRankResp::getSubmitTime)
+        );
         if (!updateList.isEmpty()) {
             for (ScoreUpdateDTO dto : updateList) {
                 teamMemberMapper.addScore(dto.getSno(), game.getId(), dto.getAddScore());

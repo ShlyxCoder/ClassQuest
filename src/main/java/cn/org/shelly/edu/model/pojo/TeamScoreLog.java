@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -42,7 +43,7 @@ public class TeamScoreLog implements Serializable {
      * 本次变动的分数
      */
     @TableField(value = "score")
-    private Integer score;
+    private BigDecimal score;
 
     /**
      * 得分原因，(1：老师加分，2：老师扣分，3：学习通导入成绩)
@@ -79,12 +80,12 @@ public class TeamScoreLog implements Serializable {
     @TableField(exist = false)
     @Serial
     private static final long serialVersionUID = 1L;
-    public static TeamScoreLog createLog(Long teamId, Long gameId, Integer score, Integer stage, Integer round, String comment) {
+    public static TeamScoreLog createLog(Long teamId, Long gameId, BigDecimal score, Integer stage, Integer round, String comment) {
         TeamScoreLog log = new TeamScoreLog();
         log.setTeamId(teamId);
         log.setGameId(gameId);
         log.setScore(score);
-        log.setReason(score > 0 ? 1 : 2);
+        log.setReason(score.compareTo(BigDecimal.ZERO) > 0 ? 1 : 2);
         log.setPhase(stage);
         log.setRound(round);
         log.setComment(comment);
