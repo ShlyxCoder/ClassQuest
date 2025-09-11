@@ -615,7 +615,7 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             teamScore.setRound(game.getProposalRound());
             teamScore.setSubRound(round+1);
             // 所有成员成绩取平均值
-            List<Integer> allScores = teamScores.stream()
+            List<Integer> validScores = teamScores.stream()
                     .map(dto -> {
                         try {
                             return Integer.parseInt(dto.getScore());
@@ -623,11 +623,11 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                             return 0;
                         }
                     })
+                    .filter(s -> s != -1)
                     .toList();
-
             BigDecimal thisRoundScore = BigDecimal.ZERO;
-            if (!allScores.isEmpty()) {
-                double avg = allScores.stream()
+            if (!validScores.isEmpty()) {
+                double avg = validScores.stream()
                         .mapToInt(Integer::intValue)
                         .average()
                         .orElse(0.0);
@@ -656,13 +656,19 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             // 收集成员得分，用于批量更新
             for (XxtStudentScoreExcelDTO dto : teamScores) {
                 if (org.apache.commons.lang3.StringUtils.isNotBlank(dto.getSno())) {
+                    int scoreInt;
+                    try {
+                        scoreInt = Integer.parseInt(dto.getScore());
+                    } catch (NumberFormatException e) {
+                        scoreInt = 0;
+                    }
+                    // 跳过请假成员
+                    if (scoreInt == -1) {
+                        continue;
+                    }
                     ScoreUpdateDTO param = new ScoreUpdateDTO();
                     param.setSno(dto.getSno());
-                    try {
-                        param.setAddScore(Integer.parseInt(dto.getScore()));
-                    } catch (NumberFormatException e) {
-                        param.setAddScore(0);
-                    }
+                    param.setAddScore(scoreInt);
                     updateList.add(param);
                 }
             }
@@ -697,11 +703,15 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
                             // 可选：记录日志或忽略
                             return null;
                         }
+                        int scoreInt = parseScore(dto.getScore());
+                        if (scoreInt == -1) {
+                            return null;
+                        }
                         StudentScoreLog log = new StudentScoreLog();
                         log.setStudentId(member.getStudentId());
                         log.setTeamId(member.getTeamId());
                         log.setGameId(gameId);
-                        log.setScore(parseScore(dto.getScore()));
+                        log.setScore(scoreInt);
                         log.setReason(3);
                         log.setPhase(2);
                         log.setRound(game.getChessRound());

@@ -98,7 +98,8 @@ public class ClassController {
     @GetMapping("/template")
     @Operation(summary = "获取学生上传excel模板")
     public void downloadTemplate(HttpServletResponse response) {
-        ExcelUtil.write(response,"学生导入模版", StudentExcelDTO.class,new ArrayList<StudentExcelDTO>());
+        ExcelUtil.write(response,"学生导入模版",
+                StudentExcelDTO.class,new ArrayList<StudentExcelDTO>());
     }
     @PostMapping("/upload")
     @Operation(summary = "上传学生excel")

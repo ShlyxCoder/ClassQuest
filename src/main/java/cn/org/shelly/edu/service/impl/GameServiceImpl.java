@@ -131,11 +131,18 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                         log.setStudentId(member.getStudentId());
                         log.setTeamId(member.getTeamId());
                         log.setGameId(gameId);
-                        log.setScore(parseScore(dto.getScore()));
+                        int score = parseScore(dto.getScore());
+                        if(score != -1){
+                            log.setScore(score);
+                            log.setComment("第" + game.getChessRound() + "轮棋盘赛学习通导入中获得成绩，满分40分，实际得分为" + dto.getScore() + "分");
+                        } else{
+                            log.setScore(0);
+                            log.setComment("第" + game.getChessRound() + "轮棋盘赛该队员请假");
+                        }
+                        log.setScore(score);
                         log.setReason(3);
                         log.setPhase(1);
                         log.setRound(game.getChessRound());
-                        log.setComment("第" + game.getChessRound() + "轮棋盘赛学习通导入中获得成绩，满分40分，实际得分为" + dto.getScore() + "分");
                         return log;
                     })
                     .filter(Objects::nonNull)
@@ -981,7 +988,7 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             Long teamId = entry.getKey();
             List<XxtStudentScoreExcelDTO> teamScores = entry.getValue();
             // 计算本轮小组平均分
-            List<BigDecimal> scores = teamScores.stream()
+            List<BigDecimal> validScores = teamScores.stream()
                     .map(dto -> {
                         try {
                             return new BigDecimal(dto.getScore());
@@ -989,13 +996,14 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                             return BigDecimal.ZERO;
                         }
                     })
+                    .filter(score -> score.compareTo(BigDecimal.valueOf(-1)) != 0)
                     .toList();
 
             BigDecimal thisRoundScore = BigDecimal.ZERO;
-            if (!scores.isEmpty()) {
-                BigDecimal sum = scores.stream()
+            if (!validScores.isEmpty()) {
+                BigDecimal sum = validScores.stream()
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
-                thisRoundScore = sum.divide(new BigDecimal(scores.size()), 2, RoundingMode.HALF_UP);
+                thisRoundScore = sum.divide(new BigDecimal(validScores.size()), 2, RoundingMode.HALF_UP);
             }
 
             // 获取最新提交时间
@@ -1026,13 +1034,19 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             // 收集成员得分，用于批量更新
             for (XxtStudentScoreExcelDTO dto : teamScores) {
                 if (org.apache.commons.lang3.StringUtils.isNotBlank(dto.getSno())) {
+                    int scoreInt;
+                    try {
+                        scoreInt = Integer.parseInt(dto.getScore());
+                    } catch (NumberFormatException e) {
+                        scoreInt = 0;
+                    }
+                    // 跳过请假成员
+                    if (scoreInt == -1 || scoreInt == 0) {
+                        continue;
+                    }
                     ScoreUpdateDTO param = new ScoreUpdateDTO();
                     param.setSno(dto.getSno());
-                    try {
-                        param.setAddScore(Integer.parseInt(dto.getScore()));
-                    } catch (NumberFormatException e) {
-                        param.setAddScore(0);
-                    }
+                    param.setAddScore(scoreInt);
                     updateList.add(param);
                 }
             }
