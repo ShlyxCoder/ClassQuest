@@ -88,8 +88,10 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
         validateGameState(game);
         // 2. 读取并验证上传文件
         List<XxtStudentScoreExcelDTO> scores = validateAndParseFile(file);
+        log.info("上传文件：{}", scores);
         // 3. 根据上传成绩构建：teamId -> 成绩列表 映射
         Map<Long, List<XxtStudentScoreExcelDTO>> groupMap = buildTeamGroupMap(scores, gameId, game.getCid());
+        log.info("分组信息：{}", groupMap);
         // 4. 获取该游戏所有小组映射：teamId -> Team
         Map<Long, Team> teamMap = getTeamMapByGame(gameId);
         // 5. 计算本轮小组得分，更新累计得分，并生成排行榜响应
@@ -109,7 +111,15 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
             log.setPhase(1);
             log.setRound(game.getChessRound());
             log.setComment("该积分是棋盘赛从学习通导入成绩获得");
-            log.setSubmitTime(item.getSubmitTime());
+            LocalDateTime submitTime = item.getSubmitTime();
+            if (submitTime == null || submitTime.isBefore(LocalDateTime.of(1000, 1, 1, 0, 0))) {
+                log.setSubmitTime(null);
+            } else if (submitTime.isAfter(LocalDateTime.of(9999, 12, 31, 23, 59, 59))) {
+                // 如果超出最大值
+                log.setSubmitTime(LocalDateTime.of(9999, 12, 31, 23, 59, 59));
+            } else {
+                log.setSubmitTime(submitTime);
+            }
             return log;
         }).toList();
         // 9. 批量插入日志
@@ -718,8 +728,12 @@ public class GameServiceImpl extends ServiceImpl<GameMapper, Game>
                     .eq(TeamScoreLog::getReason, 3)
                     .orderByDesc(TeamScoreLog::getScore)
                     .list();
+            log.info("logs: {}", logs);
         // 获取所有涉及到的小组 ID
-        Set<Long> teamIds = logs.stream().map(TeamScoreLog::getTeamId).collect(Collectors.toSet());
+        Set<Long> teamIds = logs
+                .stream().map(TeamScoreLog::getTeamId)
+                .collect(Collectors.toSet());
+        log.info("teamIds: {}", teamIds);
         Map<Long, Team> teamMap = teamService.lambdaQuery()
                 .in(Team::getId, teamIds)
                 .eq(Team::getGameId, game.getId())

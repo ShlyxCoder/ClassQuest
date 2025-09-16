@@ -52,7 +52,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         User user;
         if(param.getLoginType() == 0){
             isValidEmail(param.getUsername());
-            checkVerificationCode(param.getUsername(),param.getUsername());
+            checkVerificationCode(param.getUsername(),param.getEmailCode());
             user = lambdaQuery()
                     .eq(User::getEmail,param.getUsername())
                     .one();
