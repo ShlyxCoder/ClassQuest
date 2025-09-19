@@ -15,4 +15,10 @@ public class ProposalVoteReq {
 
     @Schema(description = "投票详情列表")
     private List<ProposalVoteItem> votes;
+
+    @Schema(description = "是否存在平票")
+    private Boolean hasTie;
+
+    @Schema(description = "平票获胜小组id")
+    private Long winnerProposalId;
 }

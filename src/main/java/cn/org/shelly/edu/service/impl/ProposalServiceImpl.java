@@ -482,11 +482,34 @@ public class ProposalServiceImpl extends ServiceImpl<ProposalMapper, Proposal>
             teamMapper.updateProposalScoreByCompositeKey(team);
         }
         // 找出得分最高的提案ID
-        Long winnerProposalId = proposalScoreMap.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .orElseThrow(() -> new CustomException("未找到得票最高的提案"))
-                .getKey();
-        Integer winnerScore = proposalScoreMap.get(winnerProposalId);
+        int maxScore = proposalScoreMap.values().stream()
+                .max(Integer::compareTo)
+                .orElseThrow(() -> new CustomException("未找到得票最高的提案"));
+
+        List<Long> topProposals = proposalScoreMap.entrySet().stream()
+                .filter(e -> e.getValue().equals(maxScore))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        Long winnerProposalId;
+        Integer winnerScore = maxScore;
+
+        if (topProposals.size() > 1) {
+            // 平票处理
+            if (req.getHasTie() == null || !req.getHasTie()) {
+                throw new CustomException("检测到平票，请前端指定 hasTie=true 并传 tieTeamId、winnerProposalId");
+            }
+            if (req.getWinnerProposalId() == null) {
+                throw new CustomException("平票时必须传获胜小组id");
+            }
+            Long finalWinnerProposalId = req.getWinnerProposalId();
+            if (!topProposals.contains(finalWinnerProposalId)) {
+                throw new CustomException("平票指定的赢家提案不在最高分列表中");
+            }
+            winnerProposalId = finalWinnerProposalId;
+        } else {
+            winnerProposalId = topProposals.get(0);
+        }
         Proposal winnerProposal = proposalMap.get(winnerProposalId);
         List<Proposal> proposalsToUpdate = new ArrayList<>();
         for (Map.Entry<Long, Integer> entry : proposalScoreMap.entrySet()) {
